@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Control de gastos de viaje</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#152238">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: linear-gradient(160deg, #152238 0%, #0c1524 100%);
+    min-height: 100vh;
+    padding: 20px;
+    color: #fff;
+  }
+  .wrap {
+    max-width: 420px;
+    margin: 0 auto;
+  }
+  .center-wrap {
+    min-height: calc(100vh - 40px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .card {
+    background: #1c2b47;
+    border-radius: 18px;
+    width: 100%;
+    padding: 28px 24px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+    border: 1px solid #2a3b5c;
+  }
+  .logo { text-align: center; margin-bottom: 18px; }
+  .logo .icon {
+    width: 56px; height: 56px; border-radius: 14px;
+    background: #d4af37; color: #152238;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: bold; font-size: 26px; margin: 0 auto 10px;
+  }
+  .logo h1 { font-size: 18px; font-weight: 600; }
+  .tabs { display: flex; margin-bottom: 20px; border-radius: 10px; overflow: hidden; background: #14213a; }
+  .tab { flex: 1; text-align: center; padding: 10px; cursor: pointer; font-size: 14px; color: #8fa3c4; }
+  .tab.active { background: #d4af37; color: #152238; font-weight: 600; }
+  .field { margin-bottom: 14px; }
+  .field label { display: block; font-size: 12px; color: #8fa3c4; margin-bottom: 5px; }
+  .field input {
+    width: 100%; padding: 11px 12px; border-radius: 8px;
+    border: 1px solid #2a3b5c; background: #14213a; color: #fff; font-size: 14px;
+  }
+  .field input:focus { outline: none; border-color: #d4af37; }
+  .field-row { display: flex; gap: 10px; }
+  .field-row .field { flex: 1; }
+  .remember { display: flex; align-items: center; gap: 8px; margin: 12px 0 18px; font-size: 13px; color: #8fa3c4; }
+  .remember input { width: auto; }
+  button.submit {
+    width: 100%; padding: 12px; border: none; border-radius: 8px;
+    background: #d4af37; color: #152238; font-weight: 700; font-size: 15px; cursor: pointer;
+  }
+  button.submit:disabled { opacity: 0.6; cursor: default; }
+  .msg { margin-top: 14px; padding: 10px 12px; border-radius: 8px; font-size: 13px; text-align: center; display: none; }
+  .msg.error { background: #4a1f2a; color: #ff8a8a; display: block; }
+  .msg.ok { background: #1f4a2e; color: #8affa0; display: block; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+  .welcome { text-align: center; }
+  .welcome h2 { margin-bottom: 8px; font-size: 16px; }
+  .welcome p { color: #8fa3c4; font-size: 14px; margin-bottom: 20px; }
+  .logout { margin-top: 16px; background: transparent; border: 1px solid #2a3b5c; color: #8fa3c4; padding: 10px; border-radius: 8px; width: 100%; cursor: pointer; }
+
+  /* ---- Pantalla de viajes ---- */
+  .top-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .top-bar h1 { font-size: 17px; }
+  .icon-btn {
+    width: 38px; height: 38px; border-radius: 10px; border: 1px solid #2a3b5c;
+    background: #14213a; color: #d4af37; font-size: 20px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+  }
+  .trip-list { display: flex; flex-direction: column; gap: 12px; margin-bottom: 10px; }
+  .trip-card {
+    background: #14213a; border: 1px solid #2a3b5c; border-radius: 12px;
+    padding: 14px 16px; cursor: default;
+  }
+  .trip-card .route { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
+  .trip-card .dates { color: #8fa3c4; font-size: 12px; margin-bottom: 6px; }
+  .trip-card .budget { color: #d4af37; font-weight: 700; font-size: 14px; }
+  .empty-state { text-align: center; color: #8fa3c4; font-size: 13px; padding: 30px 10px; }
+  .back-link { color: #8fa3c4; font-size: 13px; margin-bottom: 14px; display: inline-block; cursor: pointer; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+<div class="center-wrap" id="authCenterWrap">
+
+  <!-- PANEL LOGIN/REGISTRO -->
+  <div class="card panel active" id="authPanel">
+    <div class="logo">
+      <div class="icon">V</div>
+      <h1>Control de gastos de viaje</h1>
+    </div>
+
+    <div class="tabs">
+      <div class="tab active" data-tab="login">Entrar</div>
+      <div class="tab" data-tab="register">Crear cuenta</div>
+    </div>
+
+    <div id="loginForm">
+      <div class="field">
+        <label>Usuario</label>
+        <input type="text" id="loginUser" autocomplete="username" placeholder="tu correo o usuario">
+      </div>
+      <div class="field">
+        <label>Contraseña</label>
+        <input type="password" id="loginPass" autocomplete="current-password" placeholder="••••••••">
+      </div>
+      <div class="remember">
+        <input type="checkbox" id="rememberMe">
+        <label for="rememberMe">Mantener la sesión iniciada</label>
+      </div>
+      <button class="submit" id="loginBtn">Entrar</button>
+    </div>
+
+    <div id="registerForm" style="display:none;">
+      <div class="field">
+        <label>Usuario</label>
+        <input type="text" id="regUser" placeholder="elige un usuario">
+      </div>
+      <div class="field">
+        <label>Contraseña</label>
+        <input type="password" id="regPass" placeholder="crea una contraseña">
+      </div>
+      <button class="submit" id="regBtn">Crear cuenta</button>
+    </div>
+
+    <div id="authMsg" class="msg"></div>
+  </div>
+
+</div>
+
+  <!-- PANEL LISTA DE VIAJES (tras login) -->
+  <div class="panel" id="viajesPanel">
+    <div class="top-bar">
+      <h1 id="viajesTitle">Mis viajes</h1>
+      <div style="display:flex; gap:8px;">
+        <div class="icon-btn" id="newViajeBtn" title="Nuevo viaje">+</div>
+        <div class="icon-btn" id="logoutBtn2" title="Cerrar sesión">⏻</div>
+      </div>
+    </div>
+    <div id="viajesMsg" class="msg"></div>
+    <div class="trip-list" id="tripList"></div>
+    <div class="empty-state" id="emptyState" style="display:none;">
+      Todavía no tienes viajes. Pulsa "+" para crear el primero.
+    </div>
+  </div>
+
+  <!-- PANEL NUEVO VIAJE -->
+  <div class="panel" id="nuevoViajePanel">
+    <span class="back-link" id="backToListBtn">&larr; Volver a mis viajes</span>
+    <div class="card">
+      <h1 style="margin-bottom:16px; font-size:16px;">Nuevo viaje</h1>
+
+      <div class="field-row">
+        <div class="field">
+          <label>Ciudad recogida</label>
+          <input type="text" id="ciudadRecogida" placeholder="Barcelona">
+        </div>
+        <div class="field">
+          <label>País recogida</label>
+          <input type="text" id="paisRecogida" placeholder="España">
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label>Ciudad entrega</label>
+          <input type="text" id="ciudadEntrega" placeholder="Lyon">
+        </div>
+        <div class="field">
+          <label>País entrega</label>
+          <input type="text" id="paisEntrega" placeholder="Francia">
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label>Fecha recogida</label>
+          <input type="date" id="fechaRecogida">
+        </div>
+        <div class="field">
+          <label>Fecha entrega</label>
+          <input type="date" id="fechaEntrega">
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Presupuesto inicial (€)</label>
+        <input type="number" id="presupuestoInicial" placeholder="500" step="0.01" min="0">
+      </div>
+
+      <button class="submit" id="crearViajeBtn">Crear viaje</button>
+      <div id="nuevoViajeMsg" class="msg"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ======= CONFIGURA AQUÍ TU URL DE APPS SCRIPT =======
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyRyKhZbyzJ2ig03j7yH4xQCRG7SOj9--B9lUThWW_bYlmsdjY6wnEsm1ABry1sq6-5jw/exec";
+// =====================================================
+
+let usuarioActual = null;
+
+const authCenterWrap = document.getElementById('authCenterWrap');
+const authPanel = document.getElementById('authPanel');
+const viajesPanel = document.getElementById('viajesPanel');
+const nuevoViajePanel = document.getElementById('nuevoViajePanel');
+const authMsg = document.getElementById('authMsg');
+const viajesMsg = document.getElementById('viajesMsg');
+const nuevoViajeMsg = document.getElementById('nuevoViajeMsg');
+
+function showMsg(el, text, type) {
+  el.textContent = text;
+  el.className = 'msg ' + type;
+}
+function hideMsg(el) {
+  el.className = 'msg';
+  el.textContent = '';
+}
+
+function callApi(payload) {
+  return fetch(SCRIPT_URL, {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  }).then(res => res.json());
+}
+
+function mostrarPanel(panel) {
+  [authCenterWrap, viajesPanel, nuevoViajePanel].forEach(p => p.classList.remove('active'));
+  panel.classList.add('active');
+}
+
+// ---- Tabs login/registro ----
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    const isLogin = tab.dataset.tab === 'login';
+    document.getElementById('loginForm').style.display = isLogin ? 'block' : 'none';
+    document.getElementById('registerForm').style.display = isLogin ? 'none' : 'block';
+    hideMsg(authMsg);
+  });
+});
+
+// ---- Al cargar ----
+window.addEventListener('DOMContentLoaded', () => {
+  const savedUser = localStorage.getItem('rememberedUser');
+  if (savedUser) document.getElementById('loginUser').value = savedUser;
+
+  const session = localStorage.getItem('sessionUser');
+  if (session) {
+    usuarioActual = session;
+    entrarAViajes();
+  }
+
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('service-worker.js').catch(err => console.log('SW error:', err));
+  }
+});
+
+// ---- LOGIN ----
+document.getElementById('loginBtn').addEventListener('click', async () => {
+  const usuario = document.getElementById('loginUser').value.trim();
+  const password = document.getElementById('loginPass').value;
+  const remember = document.getElementById('rememberMe').checked;
+
+  if (!usuario || !password) {
+    showMsg(authMsg, 'Rellena usuario y contraseña.', 'error');
+    return;
+  }
+
+  showMsg(authMsg, 'Comprobando...', 'ok');
+
+  try {
+    const data = await callApi({ action: 'login', usuario, password });
+    if (data.ok) {
+      localStorage.setItem('rememberedUser', usuario);
+      if (remember) {
+        localStorage.setItem('sessionUser', usuario);
+      }
+      usuarioActual = usuario;
+      entrarAViajes();
+    } else {
+      showMsg(authMsg, data.error || 'Usuario o contraseña incorrectos.', 'error');
+    }
+  } catch (e) {
+    showMsg(authMsg, 'Error de conexión con el servidor.', 'error');
+  }
+});
+
+// ---- REGISTRO ----
+document.getElementById('regBtn').addEventListener('click', async () => {
+  const usuario = document.getElementById('regUser').value.trim();
+  const password = document.getElementById('regPass').value;
+
+  if (!usuario || !password) {
+    showMsg(authMsg, 'Rellena usuario y contraseña.', 'error');
+    return;
+  }
+
+  showMsg(authMsg, 'Creando cuenta...', 'ok');
+
+  try {
+    const data = await callApi({ action: 'registrar_usuario', usuario, password });
+    if (data.ok) {
+      showMsg(authMsg, 'Cuenta creada. Pendiente de aprobación.', 'ok');
+    } else {
+      showMsg(authMsg, data.error || 'No se pudo crear la cuenta.', 'error');
+    }
+  } catch (e) {
+    showMsg(authMsg, 'Error de conexión con el servidor.', 'error');
+  }
+});
+
+// ---- LOGOUT ----
+document.getElementById('logoutBtn2').addEventListener('click', () => {
+  localStorage.removeItem('sessionUser');
+  usuarioActual = null;
+  mostrarPanel(authCenterWrap);
+});
+
+// ---- Entrar a la pantalla de viajes tras login ----
+function entrarAViajes() {
+  document.getElementById('viajesTitle').textContent = 'Viajes de ' + usuarioActual;
+  mostrarPanel(viajesPanel);
+  cargarViajes();
+}
+
+// ---- Cargar y pintar la lista de viajes ----
+async function cargarViajes() {
+  const tripList = document.getElementById('tripList');
+  const emptyState = document.getElementById('emptyState');
+  hideMsg(viajesMsg);
+  tripList.innerHTML = '';
+  emptyState.style.display = 'none';
+
+  try {
+    const data = await callApi({ action: 'listar_viajes', usuario: usuarioActual });
+    if (!data.ok) {
+      showMsg(viajesMsg, data.error || 'No se pudieron cargar los viajes.', 'error');
+      return;
+    }
+
+    const viajes = data.viajes || [];
+    if (viajes.length === 0) {
+      emptyState.style.display = 'block';
+      return;
+    }
+
+    viajes.forEach(v => {
+      const card = document.createElement('div');
+      card.className = 'trip-card';
+      card.innerHTML = `
+        <div class="route">${v.ciudad_recogida} (${v.pais_recogida}) &rarr; ${v.ciudad_entrega} (${v.pais_entrega})</div>
+        <div class="dates">${v.fecha_recogida || '-'} al ${v.fecha_entrega || '-'}</div>
+        <div class="budget">Presupuesto: ${Number(v.presupuesto_inicial || 0).toFixed(2)} €</div>
+      `;
+      tripList.appendChild(card);
+    });
+  } catch (e) {
+    showMsg(viajesMsg, 'Error de conexión con el servidor.', 'error');
+  }
+}
+
+// ---- Ir a pantalla de nuevo viaje ----
+document.getElementById('newViajeBtn').addEventListener('click', () => {
+  ['ciudadRecogida','paisRecogida','ciudadEntrega','paisEntrega','fechaRecogida','fechaEntrega','presupuestoInicial']
+    .forEach(id => document.getElementById(id).value = '');
+  hideMsg(nuevoViajeMsg);
+  mostrarPanel(nuevoViajePanel);
+});
+
+document.getElementById('backToListBtn').addEventListener('click', () => {
+  mostrarPanel(viajesPanel);
+  cargarViajes();
+});
+
+// ---- Crear viaje ----
+document.getElementById('crearViajeBtn').addEventListener('click', async () => {
+  const viaje = {
+    usuario: usuarioActual,
+    ciudad_recogida: document.getElementById('ciudadRecogida').value.trim(),
+    pais_recogida: document.getElementById('paisRecogida').value.trim(),
+    ciudad_entrega: document.getElementById('ciudadEntrega').value.trim(),
+    pais_entrega: document.getElementById('paisEntrega').value.trim(),
+    fecha_recogida: document.getElementById('fechaRecogida').value,
+    fecha_entrega: document.getElementById('fechaEntrega').value,
+    presupuesto_inicial: parseFloat(document.getElementById('presupuestoInicial').value) || 0
+  };
+
+  if (!viaje.ciudad_recogida || !viaje.ciudad_entrega || !viaje.fecha_recogida || !viaje.fecha_entrega) {
+    showMsg(nuevoViajeMsg, 'Rellena al menos ciudades y fechas.', 'error');
+    return;
+  }
+
+  showMsg(nuevoViajeMsg, 'Guardando...', 'ok');
+
+  try {
+    const data = await callApi({ action: 'crear_viaje', viaje });
+    if (data.ok) {
+      showMsg(nuevoViajeMsg, 'Viaje creado correctamente.', 'ok');
+      setTimeout(() => {
+        mostrarPanel(viajesPanel);
+        cargarViajes();
+      }, 600);
+    } else {
+      showMsg(nuevoViajeMsg, data.error || 'No se pudo crear el viaje.', 'error');
+    }
+  } catch (e) {
+    showMsg(nuevoViajeMsg, 'Error de conexión con el servidor.', 'error');
+  }
+});
+</script>
+</body>
+</html>
