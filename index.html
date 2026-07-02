@@ -187,7 +187,7 @@ document.getElementById('loginBtn').addEventListener('click', async () => {
   try {
     const res = await fetch(SCRIPT_URL, {
       method: 'POST',
-      body: JSON.stringify({ accion: 'login', usuario, password })
+      body: JSON.stringify({ action: 'login', usuario, password })
     });
     const data = await res.json();
 
@@ -199,7 +199,7 @@ document.getElementById('loginBtn').addEventListener('click', async () => {
       showMsg('Bienvenido, ' + usuario, 'ok');
       showWelcome(usuario);
     } else {
-      showMsg(data.mensaje || 'Usuario o contraseña incorrectos.', 'error');
+      showMsg(data.error || 'Usuario o contraseña incorrectos.', 'error');
     }
   } catch (e) {
     showMsg('Error de conexión con el servidor.', 'error');
@@ -221,14 +221,14 @@ document.getElementById('regBtn').addEventListener('click', async () => {
   try {
     const res = await fetch(SCRIPT_URL, {
       method: 'POST',
-      body: JSON.stringify({ accion: 'registro', usuario, password })
+      body: JSON.stringify({ action: 'registrar_usuario', usuario, password })
     });
     const data = await res.json();
 
     if (data.ok) {
       showMsg('Cuenta creada. Pendiente de aprobación.', 'ok');
     } else {
-      showMsg(data.mensaje || 'No se pudo crear la cuenta.', 'error');
+      showMsg(data.error || 'No se pudo crear la cuenta.', 'error');
     }
   } catch (e) {
     showMsg('Error de conexión con el servidor.', 'error');
@@ -244,8 +244,3 @@ document.getElementById('logoutBtn').addEventListener('click', () => {
 </script>
 </body>
 </html>
-dhfgdtghd
-ytyse
-
-
-
