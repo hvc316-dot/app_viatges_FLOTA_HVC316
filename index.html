@@ -9,6 +9,8 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -138,6 +140,22 @@
     background: #d4af37; color: #152238; font-weight: 700; font-size: 13px;
     text-decoration: none; cursor: pointer;
   }
+
+  /* ---- Modal de recorte de ticket ---- */
+  .crop-modal {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.88);
+    z-index: 999; padding: 16px; overflow-y: auto;
+  }
+  .crop-modal.active { display: flex; align-items: center; justify-content: center; }
+  .crop-modal-inner { width: 100%; max-width: 440px; }
+  .crop-image-wrap {
+    max-height: 65vh; overflow: hidden; background: #000;
+    border-radius: 12px; border: 1px solid #2a3b5c;
+  }
+  .crop-image-wrap img { display: block; max-width: 100%; }
+  .crop-actions { display: flex; gap: 10px; margin-top: 14px; }
+  .crop-actions button { flex: 1; }
+  .crop-hint { color: #8fa3c4; font-size: 12px; text-align: center; margin-top: 10px; }
 </style>
 </head>
 <body>
@@ -411,6 +429,20 @@
     </div>
   </div>
 
+</div>
+
+<!-- MODAL DE RECORTE DE TICKET -->
+<div class="crop-modal" id="cropModal">
+  <div class="crop-modal-inner">
+    <div class="crop-image-wrap">
+      <img id="cropImage" alt="Ticket a recortar">
+    </div>
+    <div class="crop-hint">Ajusta el recuadro para dejar solo el texto del ticket</div>
+    <div class="crop-actions">
+      <button type="button" class="submit" id="cropCancelBtn" style="background:#14213a; color:#8fa3c4; border:1px solid #2a3b5c;">Cancelar</button>
+      <button type="button" class="submit" id="cropConfirmBtn">Usar recorte</button>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -988,19 +1020,75 @@ document.getElementById('backToDetalleBtn').addEventListener('click', () => {
 });
 
 // =========================================================
-// ---- ESCANEAR TICKET CON LA CÁMARA (OCR) ----
+// ---- RECORTE DE FOTO ANTES DE ESCANEAR (Cropper.js) ----
 // =========================================================
-const ticketMsg = document.getElementById('ticketMsg');
-let fotoUrlDetectada = null;
+let cropper = null;
 
 document.getElementById('escanearTicketBtn').addEventListener('click', () => {
   document.getElementById('ticketFotoInput').click();
 });
 
-document.getElementById('ticketFotoInput').addEventListener('change', async (e) => {
+document.getElementById('ticketFotoInput').addEventListener('change', (e) => {
   const file = e.target.files[0];
   if (!file) return;
 
+  const reader = new FileReader();
+  reader.onload = () => {
+    const cropImage = document.getElementById('cropImage');
+    cropImage.src = reader.result;
+    document.getElementById('cropModal').classList.add('active');
+
+    // Espera a que la imagen esté cargada en el DOM antes de inicializar Cropper
+    cropImage.onload = () => {
+      if (cropper) cropper.destroy();
+      cropper = new Cropper(cropImage, {
+        viewMode: 1,
+        autoCropArea: 0.9,
+        background: false,
+        movable: true,
+        zoomable: true,
+        rotatable: true,
+        scalable: false
+      });
+    };
+  };
+  reader.readAsDataURL(file);
+
+  // Permite volver a elegir el mismo archivo si se cancela el recorte
+  e.target.value = '';
+});
+
+document.getElementById('cropCancelBtn').addEventListener('click', () => {
+  document.getElementById('cropModal').classList.remove('active');
+  if (cropper) { cropper.destroy(); cropper = null; }
+});
+
+document.getElementById('cropConfirmBtn').addEventListener('click', () => {
+  if (!cropper) return;
+  const canvas = cropper.getCroppedCanvas({
+    maxWidth: 1800,
+    maxHeight: 1800,
+    imageSmoothingQuality: 'high'
+  });
+
+  document.getElementById('cropModal').classList.remove('active');
+  cropper.destroy();
+  cropper = null;
+
+  if (!canvas) return;
+
+  canvas.toBlob((blob) => {
+    if (blob) procesarTicketRecortado(blob);
+  }, 'image/jpeg', 0.92);
+});
+
+// =========================================================
+// ---- ESCANEAR TICKET CON LA CÁMARA (OCR) ----
+// =========================================================
+const ticketMsg = document.getElementById('ticketMsg');
+let fotoUrlDetectada = null;
+
+async function procesarTicketRecortado(blob) {
   showMsg(ticketMsg, 'Leyendo el ticket, un momento...', 'ok');
   const btn = document.getElementById('escanearTicketBtn');
   btn.disabled = true;
@@ -1010,10 +1098,10 @@ document.getElementById('ticketFotoInput').addEventListener('change', async (e) 
       const reader = new FileReader();
       reader.onload = () => resolve(reader.result);
       reader.onerror = reject;
-      reader.readAsDataURL(file);
+      reader.readAsDataURL(blob);
     });
     const base64Data = base64Completo.split(',')[1];
-    const mimeType = file.type || 'image/jpeg';
+    const mimeType = blob.type || 'image/jpeg';
 
     const data = await callApi({ action: 'escanear_ticket', imagen_base64: base64Data, mime_type: mimeType });
 
@@ -1078,9 +1166,8 @@ document.getElementById('ticketFotoInput').addEventListener('change', async (e) 
     showMsg(ticketMsg, 'Error al procesar la foto. Puedes rellenar los datos a mano.', 'error');
   } finally {
     btn.disabled = false;
-    e.target.value = '';
   }
-});
+}
 
 // ---- Construir categoria/subcategoria/detalle según el tipo elegido ----
 function construirDatosPorTipo(tipo) {
