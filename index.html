@@ -1,0 +1,1986 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Control de gastos de viaje</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#152238">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: linear-gradient(160deg, #152238 0%, #0c1524 100%);
+    min-height: 100vh;
+    padding: 20px;
+    color: #fff;
+  }
+  .wrap {
+    max-width: 420px;
+    margin: 0 auto;
+  }
+  .center-wrap {
+    min-height: calc(100vh - 40px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .card {
+    background: #1c2b47;
+    border-radius: 18px;
+    width: 100%;
+    padding: 28px 24px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+    border: 1px solid #2a3b5c;
+  }
+  .logo { text-align: center; margin-bottom: 18px; }
+  .logo .icon {
+    width: 56px; height: 56px; border-radius: 14px;
+    background: #d4af37; color: #152238;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: bold; font-size: 26px; margin: 0 auto 10px;
+  }
+  .logo h1 { font-size: 18px; font-weight: 600; }
+  .tabs { display: flex; margin-bottom: 20px; border-radius: 10px; overflow: hidden; background: #14213a; }
+  .tab { flex: 1; text-align: center; padding: 10px; cursor: pointer; font-size: 14px; color: #8fa3c4; }
+  .tab.active { background: #d4af37; color: #152238; font-weight: 600; }
+  .field { margin-bottom: 14px; }
+  .field label { display: block; font-size: 12px; color: #8fa3c4; margin-bottom: 5px; }
+  .field input {
+    width: 100%; padding: 11px 12px; border-radius: 8px;
+    border: 1px solid #2a3b5c; background: #14213a; color: #fff; font-size: 14px;
+  }
+  .field input:focus { outline: none; border-color: #d4af37; }
+  .field-row { display: flex; gap: 10px; }
+  .field-row .field { flex: 1; }
+  .remember { display: flex; align-items: center; gap: 8px; margin: 12px 0 18px; font-size: 13px; color: #8fa3c4; }
+  .remember input { width: auto; }
+  button.submit {
+    width: 100%; padding: 12px; border: none; border-radius: 8px;
+    background: #d4af37; color: #152238; font-weight: 700; font-size: 15px; cursor: pointer;
+  }
+  button.submit:disabled { opacity: 0.6; cursor: default; }
+  .msg { margin-top: 14px; padding: 10px 12px; border-radius: 8px; font-size: 13px; text-align: center; display: none; }
+  .msg.error { background: #4a1f2a; color: #ff8a8a; display: block; }
+  .msg.ok { background: #1f4a2e; color: #8affa0; display: block; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+  .welcome { text-align: center; }
+  .welcome h2 { margin-bottom: 8px; font-size: 16px; }
+  .welcome p { color: #8fa3c4; font-size: 14px; margin-bottom: 20px; }
+  .logout { margin-top: 16px; background: transparent; border: 1px solid #2a3b5c; color: #8fa3c4; padding: 10px; border-radius: 8px; width: 100%; cursor: pointer; }
+
+  /* ---- Pantalla de viajes ---- */
+  .top-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .top-bar h1 { font-size: 17px; }
+  .icon-btn {
+    width: 38px; height: 38px; border-radius: 10px; border: 1px solid #2a3b5c;
+    background: #14213a; color: #d4af37; font-size: 20px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+  }
+  .trip-list { display: flex; flex-direction: column; gap: 12px; margin-bottom: 10px; }
+  .trip-card {
+    background: #14213a; border: 1px solid #2a3b5c; border-radius: 12px;
+    padding: 14px 16px; cursor: default;
+  }
+  .trip-card .route { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
+  .trip-card .dates { color: #8fa3c4; font-size: 12px; margin-bottom: 6px; }
+  .trip-card .budget { color: #d4af37; font-weight: 700; font-size: 14px; }
+  .empty-state { text-align: center; color: #8fa3c4; font-size: 13px; padding: 30px 10px; }
+  .back-link { color: #8fa3c4; font-size: 13px; margin-bottom: 14px; display: inline-block; cursor: pointer; }
+  .trip-card.clickable { cursor: pointer; }
+  .trip-card.clickable:active { background: #1a2a47; }
+  .trip-card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+  .estado-badge {
+    font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 20px;
+    white-space: nowrap; text-transform: uppercase; letter-spacing: 0.3px;
+  }
+  .estado-badge.activo { background: #1f4a2e; color: #8affa0; }
+  .estado-badge.finalizado { background: #2a3b5c; color: #8fa3c4; }
+  .conductor-tag {
+    display: flex; align-items: center; gap: 6px; font-size: 11px;
+    color: #c8d3e6; margin-bottom: 6px; word-break: break-all;
+  }
+  .conductor-dot {
+    display: inline-block; width: 9px; height: 9px; border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  /* ---- Pantalla de detalle de viaje / gastos ---- */
+  .summary-card {
+    background: #14213a; border: 1px solid #2a3b5c; border-radius: 12px;
+    padding: 16px; margin-bottom: 16px;
+  }
+  .summary-card .route { font-weight: 600; font-size: 15px; margin-bottom: 4px; }
+  .summary-card .dates { color: #8fa3c4; font-size: 12px; margin-bottom: 12px; }
+  .summary-row { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px; }
+  .summary-row span:first-child { color: #8fa3c4; }
+  .summary-row.total .amount-ok { color: #8affa0; font-weight: 700; }
+  .summary-row.total .amount-bad { color: #ff8a8a; font-weight: 700; }
+  select.field-select {
+    width: 100%; padding: 11px 12px; border-radius: 8px;
+    border: 1px solid #2a3b5c; background: #14213a; color: #fff; font-size: 14px;
+  }
+  .gasto-card {
+    background: #14213a; border: 1px solid #2a3b5c; border-radius: 12px;
+    padding: 12px 14px; margin-bottom: 10px;
+  }
+  .gasto-card .gasto-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 3px; }
+  .gasto-card .gasto-tipo { font-weight: 600; font-size: 14px; }
+  .gasto-card .gasto-importe { color: #d4af37; font-weight: 700; font-size: 14px; }
+  .gasto-card .gasto-sub { color: #8fa3c4; font-size: 12px; }
+  .gasto-card .gasto-notas { color: #c8d3e6; font-size: 12px; margin-top: 4px; }
+  .gasto-card .gasto-nav { display: inline-block; margin-top: 6px; font-size: 12px; color: #d4af37; cursor: pointer; text-decoration: underline; }
+
+  .pref-info { font-size: 13px; color: #c8d3e6; margin-bottom: 14px; }
+  .ubicacion-status { font-size: 12px; color: #8fa3c4; margin-bottom: 14px; }
+  .ubicacion-status.ok { color: #8affa0; }
+  .ubicacion-status.bad { color: #ff8a8a; }
+
+  .station-card {
+    background: #14213a; border: 1px solid #2a3b5c; border-radius: 12px;
+    padding: 14px 16px; margin-bottom: 12px;
+  }
+  .station-card .station-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
+  .station-card .station-tipo { font-weight: 600; font-size: 14px; }
+  .station-card .station-importe { color: #d4af37; font-weight: 700; font-size: 14px; }
+  .station-card .station-fecha { color: #8fa3c4; font-size: 12px; margin-bottom: 8px; }
+  .nav-btn {
+    display: inline-block; padding: 8px 14px; border-radius: 8px;
+    background: #d4af37; color: #152238; font-weight: 700; font-size: 13px;
+    text-decoration: none; cursor: pointer;
+  }
+
+  /* ---- Resumen mensual ---- */
+  .mes-card {
+    background: #14213a; border: 1px solid #2a3b5c; border-radius: 12px;
+    padding: 16px; margin-bottom: 12px;
+  }
+  .mes-card .mes-titulo { font-weight: 700; font-size: 15px; margin-bottom: 10px; text-transform: capitalize; }
+  .mes-card .mes-row { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px; }
+  .mes-card .mes-row span:first-child { color: #8fa3c4; }
+  .mes-card .mes-row.beneficio { margin-top: 8px; padding-top: 8px; border-top: 1px solid #2a3b5c; font-size: 14px; font-weight: 700; }
+  .mes-card .mes-row.beneficio .amount-ok { color: #8affa0; }
+  .mes-card .mes-row.beneficio .amount-bad { color: #ff8a8a; }
+  .mes-card .mes-viajes-count { color: #8fa3c4; font-size: 11px; margin-top: 4px; }
+
+  /* ---- Resumen de administrador (equipo) ---- */
+  .equipo-mes-header {
+    display: flex; justify-content: space-between; align-items: baseline;
+    margin: 18px 0 10px; padding-bottom: 6px; border-bottom: 1px solid #2a3b5c;
+  }
+  .equipo-mes-header .equipo-mes-titulo { font-weight: 700; font-size: 15px; text-transform: capitalize; }
+  .equipo-mes-header .equipo-mes-parte { font-size: 12px; color: #8fa3c4; }
+  .conductor-card {
+    background: #14213a; border: 1px solid #2a3b5c; border-radius: 12px;
+    padding: 14px 16px; margin-bottom: 10px;
+  }
+  .conductor-card .conductor-nombre { font-weight: 700; font-size: 14px; margin-bottom: 8px; word-break: break-all; }
+  .conductor-card .conductor-row { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px; }
+  .conductor-card .conductor-row span:first-child { color: #8fa3c4; }
+  .conductor-card .conductor-ajuste {
+    margin-top: 8px; padding-top: 8px; border-top: 1px solid #2a3b5c;
+    font-size: 13px; font-weight: 700; display: flex; justify-content: space-between;
+  }
+  .equipo-total-card {
+    background: #1c2b47; border: 1px solid #d4af37; border-radius: 12px;
+    padding: 14px 16px; margin-bottom: 14px;
+  }
+  .equipo-total-card .equipo-total-row { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px; }
+  .equipo-total-card .equipo-total-row span:first-child { color: #8fa3c4; }
+
+  /* ---- Modal de recorte de ticket (recorte propio, sin librerías externas) ---- */
+  .crop-modal {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.92);
+    z-index: 999; padding: 16px; overflow-y: auto;
+  }
+  .crop-modal.active { display: flex; align-items: center; justify-content: center; }
+  .crop-modal-inner { width: 100%; max-width: 440px; }
+  .crop-image-wrap {
+    position: relative; max-height: 65vh; overflow: hidden; background: #000;
+    border-radius: 12px; border: 1px solid #2a3b5c;
+    display: flex; align-items: center; justify-content: center;
+    touch-action: none;
+  }
+  .crop-image-wrap img {
+    display: block; max-width: 100%; max-height: 65vh;
+    user-select: none; -webkit-user-drag: none; pointer-events: none;
+  }
+  .crop-box {
+    position: absolute;
+    border: 2px solid #d4af37;
+    box-shadow: 0 0 0 9999px rgba(0,0,0,0.55);
+    cursor: move;
+    touch-action: none;
+  }
+  .crop-handle {
+    position: absolute;
+    width: 24px; height: 24px;
+    background: #d4af37;
+    border: 2px solid #152238;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    touch-action: none;
+  }
+  .crop-handle.nw { top: 0; left: 0; cursor: nwse-resize; }
+  .crop-handle.ne { top: 0; left: 100%; cursor: nesw-resize; }
+  .crop-handle.sw { top: 100%; left: 0; cursor: nesw-resize; }
+  .crop-handle.se { top: 100%; left: 100%; cursor: nwse-resize; }
+  .crop-actions { display: flex; gap: 10px; margin-top: 14px; }
+  .crop-actions button { flex: 1; }
+  .crop-hint { color: #8fa3c4; font-size: 12px; text-align: center; margin-top: 10px; }
+  .crop-rotate-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 38px; height: 38px; border-radius: 10px; border: 1px solid #2a3b5c;
+    background: #14213a; color: #d4af37; font-size: 18px; cursor: pointer;
+    margin: 0 auto 10px; 
+  }
+  .crop-toolbar { display: flex; justify-content: center; }
+
+  /* ---- Finalizar viaje ---- */
+  .finalizar-btn {
+    width: 100%; padding: 11px; border: 1px solid #2a3b5c; border-radius: 8px;
+    background: transparent; color: #ff8a8a; font-weight: 600; font-size: 13px;
+    cursor: pointer; margin-top: 12px;
+  }
+  .finalizado-etiqueta {
+    width: 100%; text-align: center; padding: 10px; border-radius: 8px;
+    background: #14213a; color: #8fa3c4; font-weight: 600; font-size: 12px;
+    margin-top: 12px; letter-spacing: 0.3px; text-transform: uppercase;
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+<div class="center-wrap" id="authCenterWrap">
+
+  <!-- PANEL LOGIN/REGISTRO -->
+  <div class="card panel active" id="authPanel">
+    <div class="logo">
+      <div class="icon">V</div>
+      <h1>Control de gastos de viaje</h1>
+    </div>
+
+    <div class="tabs">
+      <div class="tab active" data-tab="login">Entrar</div>
+      <div class="tab" data-tab="register">Crear cuenta</div>
+    </div>
+
+    <div id="loginForm">
+      <div class="field">
+        <label>Usuario</label>
+        <input type="text" id="loginUser" autocomplete="username" placeholder="tu correo o usuario">
+      </div>
+      <div class="field">
+        <label>Contraseña</label>
+        <input type="password" id="loginPass" autocomplete="current-password" placeholder="••••••••">
+      </div>
+      <div class="remember">
+        <input type="checkbox" id="rememberMe">
+        <label for="rememberMe">Mantener la sesión iniciada</label>
+      </div>
+      <button class="submit" id="loginBtn">Entrar</button>
+    </div>
+
+    <div id="registerForm" style="display:none;">
+      <div class="field">
+        <label>Usuario</label>
+        <input type="text" id="regUser" placeholder="elige un usuario">
+      </div>
+      <div class="field">
+        <label>Contraseña</label>
+        <input type="password" id="regPass" placeholder="crea una contraseña">
+      </div>
+      <button class="submit" id="regBtn">Crear cuenta</button>
+    </div>
+
+    <div id="authMsg" class="msg"></div>
+  </div>
+
+</div>
+
+  <!-- PANEL LISTA DE VIAJES (tras login) -->
+  <div class="panel" id="viajesPanel">
+    <div class="top-bar">
+      <h1 id="viajesTitle">Mis viajes</h1>
+      <div style="display:flex; gap:8px;">
+        <div class="icon-btn" id="adminResumenBtn" title="Resumen de equipo" style="display:none;">👥</div>
+        <div class="icon-btn" id="resumenMensualBtn" title="Resumen mensual">📊</div>
+        <div class="icon-btn" id="newViajeBtn" title="Nuevo viaje">+</div>
+        <div class="icon-btn" id="logoutBtn2" title="Cerrar sesión">⏻</div>
+      </div>
+    </div>
+    <div class="tabs">
+      <div class="tab active" data-viaje-filtro="activos">Activos</div>
+      <div class="tab" data-viaje-filtro="finalizados">Finalizados</div>
+      <div class="tab" data-viaje-filtro="todos">Todos</div>
+    </div>
+    <div id="viajesMsg" class="msg"></div>
+    <div class="trip-list" id="tripList"></div>
+    <div class="empty-state" id="emptyState" style="display:none;">
+      Todavía no tienes viajes. Pulsa "+" para crear el primero.
+    </div>
+  </div>
+
+  <!-- PANEL RESUMEN MENSUAL -->
+  <div class="panel" id="resumenMensualPanel">
+    <span class="back-link" id="backToListFromResumenBtn">&larr; Volver a mis viajes</span>
+    <h1 style="font-size:16px; margin-bottom:14px;">Resumen mensual</h1>
+    <div id="resumenMensualMsg" class="msg"></div>
+    <div id="resumenMensualList"></div>
+    <div class="empty-state" id="emptyResumenState" style="display:none;">
+      Todavía no hay datos suficientes para calcular un resumen mensual.
+    </div>
+  </div>
+
+  <!-- PANEL RESUMEN DE ADMINISTRADOR (solo visible para el usuario admin) -->
+  <div class="panel" id="adminResumenPanel">
+    <span class="back-link" id="backToListFromAdminBtn">&larr; Volver a mis viajes</span>
+    <h1 style="font-size:16px; margin-bottom:14px;">Resumen del equipo</h1>
+
+    <div class="tabs">
+      <div class="tab active" data-admin-tab="mes">Por mes</div>
+      <div class="tab" data-admin-tab="acumulado">Acumulado total</div>
+    </div>
+
+    <div id="adminResumenMsg" class="msg"></div>
+    <div id="adminResumenPorMes"></div>
+    <div id="adminResumenAcumulado" style="display:none;"></div>
+    <div class="empty-state" id="emptyAdminResumenState" style="display:none;">
+      Todavía no hay viajes registrados para calcular el resumen del equipo.
+    </div>
+  </div>
+
+  <!-- PANEL NUEVO VIAJE -->
+  <div class="panel" id="nuevoViajePanel">
+    <span class="back-link" id="backToListBtn">&larr; Volver a mis viajes</span>
+    <div class="card">
+      <h1 style="margin-bottom:16px; font-size:16px;">Nuevo viaje</h1>
+
+      <div class="field" id="asignarConductorBlock" style="display:none;">
+        <label>Asignar a conductor</label>
+        <select class="field-select" id="viajeConductorAsignado">
+          <option value="">Yo mismo</option>
+        </select>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label>Ciudad recogida</label>
+          <input type="text" id="ciudadRecogida" placeholder="Barcelona">
+        </div>
+        <div class="field">
+          <label>País recogida</label>
+          <input type="text" id="paisRecogida" placeholder="España">
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Dirección de recogida (opcional)</label>
+        <input type="text" id="direccionRecogida" placeholder="Calle, número, CP">
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label>Ciudad entrega</label>
+          <input type="text" id="ciudadEntrega" placeholder="Lyon">
+        </div>
+        <div class="field">
+          <label>País entrega</label>
+          <input type="text" id="paisEntrega" placeholder="Francia">
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Dirección de entrega (opcional)</label>
+        <input type="text" id="direccionEntrega" placeholder="Calle, número, CP">
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label>Fecha recogida</label>
+          <input type="date" id="fechaRecogida">
+        </div>
+        <div class="field">
+          <label>Fecha entrega</label>
+          <input type="date" id="fechaEntrega">
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Presupuesto inicial (€)</label>
+        <input type="number" id="presupuestoInicial" placeholder="500" step="0.01" min="0">
+      </div>
+
+      <button class="submit" id="crearViajeBtn">Crear viaje</button>
+      <div id="nuevoViajeMsg" class="msg"></div>
+    </div>
+  </div>
+
+  <!-- PANEL DETALLE DE VIAJE / GASTOS -->
+  <div class="panel" id="detalleViajePanel">
+    <span class="back-link" id="backToListFromDetalleBtn">&larr; Volver a mis viajes</span>
+    <div class="summary-card" id="resumenViaje"></div>
+    <div class="top-bar">
+      <h1 style="font-size:15px;">Gastos</h1>
+      <div style="display:flex; gap:8px;">
+        <div class="icon-btn" id="gasolinerasBtn" title="Gasolineras">⛽</div>
+        <div class="icon-btn" id="newGastoBtn" title="Nuevo gasto">+</div>
+      </div>
+    </div>
+    <div id="gastosMsg" class="msg"></div>
+    <div id="gastosList"></div>
+    <div class="empty-state" id="emptyGastosState" style="display:none;">
+      Todavía no hay gastos registrados para este viaje.
+    </div>
+  </div>
+
+  <!-- PANEL GASOLINERAS -->
+  <div class="panel" id="gasolinerasPanel">
+    <span class="back-link" id="backToDetalleFromGasolinerasBtn">&larr; Volver al viaje</span>
+    <h1 style="font-size:16px; margin-bottom:14px;">Gasolineras de este viaje</h1>
+    <div id="gasolinerasMsg" class="msg"></div>
+    <div id="gasolinerasList"></div>
+    <div class="empty-state" id="emptyGasolinerasState" style="display:none;">
+      Todavía no hay repostajes registrados con ubicación en este viaje.
+    </div>
+  </div>
+
+  <!-- PANEL NUEVO GASTO -->
+  <div class="panel" id="nuevoGastoPanel">
+    <span class="back-link" id="backToDetalleBtn">&larr; Volver al viaje</span>
+    <div class="card">
+      <h1 style="margin-bottom:16px; font-size:16px;">Nuevo gasto</h1>
+
+      <input type="file" id="ticketFotoInput" accept="image/*" capture="environment" style="display:none;">
+      <button type="button" class="submit" id="escanearTicketBtn" style="background:#14213a; color:#d4af37; border:1px solid #d4af37; margin-bottom:16px;">
+        📷 Escanear ticket
+      </button>
+      <div id="ticketMsg" class="msg"></div>
+
+      <div class="field">
+        <label>Tipo</label>
+        <select class="field-select" id="gastoTipo">
+          <option value="Combustible">Combustible</option>
+          <option value="Peaje">Peaje</option>
+          <option value="Dieta/Comida">Dieta / Comida</option>
+          <option value="Alojamiento">Alojamiento</option>
+          <option value="Traslado">Traslado</option>
+          <option value="Otros">Otros</option>
+        </select>
+      </div>
+
+      <!-- Bloque COMBUSTIBLE -->
+      <div class="tipo-block" id="blockCombustible">
+        <div class="field" id="combustibleTipoBlock">
+          <label>Tipo de combustible</label>
+          <select class="field-select" id="gastoCombustibleTipo">
+            <option value="Gasolina">Gasolina</option>
+            <option value="Diésel">Diésel</option>
+            <option value="Eléctrico">Eléctrico</option>
+          </select>
+        </div>
+        <div class="pref-info" id="combustibleGuardadoInfo" style="display:none;">
+          Combustible: <strong id="combustibleGuardadoTexto"></strong>
+          &nbsp;<span class="back-link" id="cambiarCombustibleBtn" style="margin:0;">Cambiar</span>
+        </div>
+      </div>
+
+      <!-- Bloque PEAJE -->
+      <div class="tipo-block" id="blockPeaje" style="display:none;">
+        <div class="field">
+          <label>Vía / autopista</label>
+          <input type="text" id="gastoVia" placeholder="ej. AP-7">
+        </div>
+      </div>
+
+      <!-- Bloque DIETA -->
+      <div class="tipo-block" id="blockDieta" style="display:none;">
+        <div class="field">
+          <label>Comprado en</label>
+          <select class="field-select" id="gastoDietaLugar">
+            <option value="Restaurante">Restaurante</option>
+            <option value="Tienda">Tienda</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Bloque ALOJAMIENTO -->
+      <div class="tipo-block" id="blockAlojamiento" style="display:none;">
+        <div class="field-row">
+          <div class="field">
+            <label>Tipo</label>
+            <select class="field-select" id="gastoAlojamientoTipo">
+              <option value="Hotel">Hotel</option>
+              <option value="Airbnb">Airbnb</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Ciudad</label>
+            <input type="text" id="gastoAlojamientoCiudad" placeholder="Lyon">
+          </div>
+        </div>
+      </div>
+
+      <!-- Bloque TRASLADO -->
+      <div class="tipo-block" id="blockTraslado" style="display:none;">
+        <div class="field">
+          <label>Medio</label>
+          <select class="field-select" id="gastoTrasladoMedio">
+            <option value="Avión">Avión</option>
+            <option value="Bus">Bus</option>
+            <option value="BlaBlaCar">BlaBlaCar</option>
+            <option value="Ferry">Ferry</option>
+            <option value="Tren">Tren</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Bloque OTROS -->
+      <div class="tipo-block" id="blockOtros" style="display:none;">
+        <div class="field-row">
+          <div class="field">
+            <label>Categoría (opcional)</label>
+            <input type="text" id="gastoCategoriaOtros" placeholder="ej. Material">
+          </div>
+          <div class="field">
+            <label>Subcategoría (opcional)</label>
+            <input type="text" id="gastoSubcategoriaOtros" placeholder="ej. Herramienta">
+          </div>
+        </div>
+      </div>
+
+      <div class="ubicacion-status" id="ubicacionStatus" style="display:none;"></div>
+
+      <div class="field-row">
+        <div class="field">
+          <label>Importe (€)</label>
+          <input type="number" id="gastoImporte" placeholder="25.50" step="0.01" min="0">
+        </div>
+        <div class="field">
+          <label>Fecha y hora</label>
+          <input type="datetime-local" id="gastoFecha">
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Notas (opcional)</label>
+        <input type="text" id="gastoNotas" placeholder="Detalle adicional">
+      </div>
+
+      <button class="submit" id="crearGastoBtn">Guardar gasto</button>
+      <div id="nuevoGastoMsg" class="msg"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- MODAL DE RECORTE DE TICKET (implementación propia, sin librerías externas) -->
+<div class="crop-modal" id="cropModal">
+  <div class="crop-modal-inner">
+    <div class="crop-toolbar">
+      <div class="crop-rotate-btn" id="cropRotateBtn" title="Girar 90°">⟳</div>
+    </div>
+    <div class="crop-image-wrap" id="cropWrap">
+      <img id="cropImage" alt="Ticket a recortar">
+      <div class="crop-box" id="cropBox">
+        <div class="crop-handle nw" data-handle="nw"></div>
+        <div class="crop-handle ne" data-handle="ne"></div>
+        <div class="crop-handle sw" data-handle="sw"></div>
+        <div class="crop-handle se" data-handle="se"></div>
+      </div>
+    </div>
+    <div class="crop-hint">Arrastra el recuadro y sus esquinas para dejar solo el texto del ticket</div>
+    <div class="crop-actions">
+      <button type="button" class="submit" id="cropCancelBtn" style="background:#14213a; color:#8fa3c4; border:1px solid #2a3b5c;">Cancelar</button>
+      <button type="button" class="submit" id="cropConfirmBtn">Usar recorte</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ======= CONFIGURA AQUÍ TU URL DE APPS SCRIPT =======
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyRyKhZbyzJ2ig03j7yH4xQCRG7SOj9--B9lUThWW_bYlmsdjY6wnEsm1ABry1sq6-5jw/exec";
+// =====================================================
+const ADMIN_USUARIO = "hvc316transporte@gmail.com";
+
+let usuarioActual = null;
+let sessionToken = null;
+let esAdminActual = false;
+
+const authCenterWrap = document.getElementById('authCenterWrap');
+const authPanel = document.getElementById('authPanel');
+const viajesPanel = document.getElementById('viajesPanel');
+const nuevoViajePanel = document.getElementById('nuevoViajePanel');
+const authMsg = document.getElementById('authMsg');
+const viajesMsg = document.getElementById('viajesMsg');
+const nuevoViajeMsg = document.getElementById('nuevoViajeMsg');
+
+function showMsg(el, text, type) {
+  el.textContent = text;
+  el.className = 'msg ' + type;
+}
+function hideMsg(el) {
+  el.className = 'msg';
+  el.textContent = '';
+}
+
+// Si el servidor nos dice que la sesión ha caducado (token vencido, borrado,
+// o inexistente), volvemos a la pantalla de login y limpiamos todo lo local.
+function forzarCierreSesion(mensaje) {
+  localStorage.removeItem('sessionUser');
+  localStorage.removeItem('sessionToken');
+  usuarioActual = null;
+  sessionToken = null;
+  esAdminActual = false;
+  viajeActual = null;
+  mostrarPanel(authCenterWrap);
+  showMsg(authMsg, mensaje || 'Tu sesión ha caducado. Vuelve a iniciar sesión.', 'error');
+}
+
+function callApi(payload) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 20000); // 20s máximo
+
+  const body = Object.assign({}, payload);
+  if (sessionToken && body.action !== 'login' && body.action !== 'registrar_usuario') {
+    body.token = sessionToken;
+  }
+
+  return fetch(SCRIPT_URL, {
+    method: 'POST',
+    body: JSON.stringify(body),
+    signal: controller.signal
+  })
+    .then(res => res.json())
+    .then(data => {
+      if (data && data.ok === false && data.sesion_invalida) {
+        forzarCierreSesion(data.error);
+      }
+      return data;
+    })
+    .finally(() => clearTimeout(timeoutId));
+}
+
+function mostrarPanel(panel) {
+  authCenterWrap.style.display = (panel === authCenterWrap) ? 'flex' : 'none';
+  [viajesPanel, nuevoViajePanel, detalleViajePanel, nuevoGastoPanel, gasolinerasPanel, resumenMensualPanel, adminResumenPanel].forEach(p => p.classList.remove('active'));
+  if (panel !== authCenterWrap) panel.classList.add('active');
+}
+
+// ---- Tabs login/registro ----
+document.querySelectorAll('#authPanel .tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('#authPanel .tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    const isLogin = tab.dataset.tab === 'login';
+    document.getElementById('loginForm').style.display = isLogin ? 'block' : 'none';
+    document.getElementById('registerForm').style.display = isLogin ? 'none' : 'block';
+    hideMsg(authMsg);
+  });
+});
+
+// ---- Al cargar ----
+window.addEventListener('DOMContentLoaded', () => {
+  const savedUser = localStorage.getItem('rememberedUser');
+  if (savedUser) document.getElementById('loginUser').value = savedUser;
+
+  const session = localStorage.getItem('sessionUser');
+  const savedToken = localStorage.getItem('sessionToken');
+  if (session && savedToken) {
+    usuarioActual = session;
+    sessionToken = savedToken;
+    entrarAViajes();
+  }
+
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('service-worker.js').catch(err => console.log('SW error:', err));
+  }
+});
+
+// ---- LOGIN ----
+document.getElementById('loginBtn').addEventListener('click', async () => {
+  const usuario = document.getElementById('loginUser').value.trim();
+  const password = document.getElementById('loginPass').value;
+  const remember = document.getElementById('rememberMe').checked;
+
+  if (!usuario || !password) {
+    showMsg(authMsg, 'Rellena usuario y contraseña.', 'error');
+    return;
+  }
+
+  showMsg(authMsg, 'Comprobando...', 'ok');
+
+  try {
+    const data = await callApi({ action: 'login', usuario, password });
+    if (data.ok) {
+      localStorage.setItem('rememberedUser', usuario);
+      if (remember) {
+        localStorage.setItem('sessionUser', usuario);
+        localStorage.setItem('sessionToken', data.token);
+      }
+      usuarioActual = usuario;
+      sessionToken = data.token;
+      entrarAViajes();
+    } else {
+      showMsg(authMsg, data.error || 'Usuario o contraseña incorrectos.', 'error');
+    }
+  } catch (e) {
+    showMsg(authMsg, 'Error de conexión con el servidor.', 'error');
+  }
+});
+
+// ---- REGISTRO ----
+document.getElementById('regBtn').addEventListener('click', async () => {
+  const usuario = document.getElementById('regUser').value.trim();
+  const password = document.getElementById('regPass').value;
+
+  if (!usuario || !password) {
+    showMsg(authMsg, 'Rellena usuario y contraseña.', 'error');
+    return;
+  }
+
+  showMsg(authMsg, 'Creando cuenta...', 'ok');
+
+  try {
+    const data = await callApi({ action: 'registrar_usuario', usuario, password });
+    if (data.ok) {
+      showMsg(authMsg, 'Cuenta creada. Pendiente de aprobación.', 'ok');
+    } else {
+      showMsg(authMsg, data.error || 'No se pudo crear la cuenta.', 'error');
+    }
+  } catch (e) {
+    showMsg(authMsg, 'Error de conexión con el servidor.', 'error');
+  }
+});
+
+// ---- LOGOUT ----
+document.getElementById('logoutBtn2').addEventListener('click', () => {
+  callApi({ action: 'logout' }).catch(() => {});
+  localStorage.removeItem('sessionUser');
+  localStorage.removeItem('sessionToken');
+  usuarioActual = null;
+  sessionToken = null;
+  esAdminActual = false;
+  mostrarPanel(authCenterWrap);
+});
+
+// ---- Entrar a la pantalla de viajes tras login ----
+function entrarAViajes() {
+  document.getElementById('viajesTitle').textContent = 'Viajes de ' + usuarioActual;
+  document.getElementById('adminResumenBtn').style.display = (usuarioActual === ADMIN_USUARIO) ? 'flex' : 'none';
+  mostrarPanel(viajesPanel);
+  cargarViajes();
+  cargarPreferenciaCombustible();
+}
+
+let combustibleTipoGuardado = null;
+
+async function cargarPreferenciaCombustible() {
+  try {
+    const data = await callApi({ action: 'get_preferencia', usuario: usuarioActual, clave: 'combustible_tipo' });
+    combustibleTipoGuardado = (data && data.ok) ? (data.valor || null) : null;
+  } catch (e) {
+    combustibleTipoGuardado = null;
+  }
+}
+
+// ---- Filtro de viajes (Activos / Finalizados / Todos) ----
+let filtroViajesActual = 'activos';
+let ultimosViajesCargados = [];
+
+document.querySelectorAll('#viajesPanel .tab[data-viaje-filtro]').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('#viajesPanel .tab[data-viaje-filtro]').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    filtroViajesActual = tab.dataset.viajeFiltro;
+    pintarListaViajes();
+  });
+});
+
+// ---- Cargar y pintar la lista de viajes ----
+async function cargarViajes() {
+  const viajesList_ = document.getElementById('tripList');
+  hideMsg(viajesMsg);
+  viajesList_.innerHTML = '';
+
+  try {
+    const data = await callApi({ action: 'listar_viajes', usuario: usuarioActual });
+    if (!data.ok) {
+      showMsg(viajesMsg, data.error || 'No se pudieron cargar los viajes.', 'error');
+      return;
+    }
+    ultimosViajesCargados = data.viajes || [];
+    esAdminActual = !!data.es_admin;
+    pintarListaViajes();
+  } catch (e) {
+    showMsg(viajesMsg, 'Error de conexión con el servidor.', 'error');
+  }
+}
+
+// ---- Color automático por conductor (para que el admin distinga de un
+// vistazo los viajes de cada persona). Se calcula a partir del propio
+// nombre de usuario, así que siempre sale el mismo color para el mismo
+// conductor, sin necesidad de guardar nada.
+const PALETA_CONDUCTORES = ['#d4af37', '#5ea8ed', '#7ee787', '#ff8a8a', '#c792ea', '#7fdbca', '#ffb86b', '#ff79c6', '#8fa3c4', '#f1fa8c'];
+
+function colorParaConductor(usuario) {
+  let hash = 0;
+  const texto = String(usuario || '');
+  for (let i = 0; i < texto.length; i++) {
+    hash = (hash * 31 + texto.charCodeAt(i)) >>> 0;
+  }
+  return PALETA_CONDUCTORES[hash % PALETA_CONDUCTORES.length];
+}
+
+function pintarListaViajes() {
+  const tripList = document.getElementById('tripList');
+  const emptyState = document.getElementById('emptyState');
+  tripList.innerHTML = '';
+  emptyState.style.display = 'none';
+
+  const viajes = ultimosViajesCargados.filter(v => {
+    const estado = v.estado || 'activo';
+    if (filtroViajesActual === 'activos') return estado === 'activo';
+    if (filtroViajesActual === 'finalizados') return estado === 'finalizado';
+    return true; // todos
+  });
+
+  if (viajes.length === 0) {
+    emptyState.style.display = 'block';
+    emptyState.textContent = ultimosViajesCargados.length === 0
+      ? 'Todavía no tienes viajes. Pulsa "+" para crear el primero.'
+      : (filtroViajesActual === 'activos' ? 'No tienes viajes activos.' : 'No tienes viajes finalizados.');
+    return;
+  }
+
+  viajes.forEach(v => {
+    const estado = v.estado || 'activo';
+    const tieneBeneficio = typeof v.beneficio === 'number';
+    const beneficioHtml = (estado === 'finalizado' && tieneBeneficio)
+      ? `<div class="summary-row total" style="margin-top:4px;"><span>Beneficio</span><span class="${v.beneficio >= 0 ? 'amount-ok' : 'amount-bad'}">${v.beneficio.toFixed(2)} €</span></div>`
+      : '';
+    const conductorHtml = (esAdminActual && v.usuario)
+      ? `<div class="conductor-tag"><span class="conductor-dot" style="background:${colorParaConductor(v.usuario)};"></span>${v.usuario}</div>`
+      : '';
+    const card = document.createElement('div');
+    card.className = 'trip-card clickable';
+    if (esAdminActual && v.usuario) {
+      card.style.borderLeft = '3px solid ' + colorParaConductor(v.usuario);
+    }
+    card.innerHTML = `
+      <div class="trip-card-top">
+        <div class="route">${v.ciudad_recogida} (${v.pais_recogida}) &rarr; ${v.ciudad_entrega} (${v.pais_entrega})</div>
+        <span class="estado-badge ${estado}">${estado === 'finalizado' ? 'Finalizado' : 'Activo'}</span>
+      </div>
+      ${conductorHtml}
+      <div class="dates">${v.fecha_recogida || '-'} al ${v.fecha_entrega || '-'}</div>
+      <div class="budget">Presupuesto: ${Number(v.presupuesto_inicial || 0).toFixed(2)} €</div>
+      ${beneficioHtml}
+    `;
+    card.addEventListener('click', () => entrarADetalleViaje(v));
+    tripList.appendChild(card);
+  });
+}
+
+// ---- Ir a pantalla de nuevo viaje ----
+document.getElementById('newViajeBtn').addEventListener('click', async () => {
+  ['ciudadRecogida','paisRecogida','direccionRecogida','ciudadEntrega','paisEntrega','direccionEntrega','fechaRecogida','fechaEntrega','presupuestoInicial']
+    .forEach(id => document.getElementById(id).value = '');
+  hideMsg(nuevoViajeMsg);
+
+  const bloqueAsignar = document.getElementById('asignarConductorBlock');
+  const selectConductor = document.getElementById('viajeConductorAsignado');
+  if (usuarioActual === ADMIN_USUARIO) {
+    bloqueAsignar.style.display = 'block';
+    selectConductor.innerHTML = '<option value="">Yo mismo</option>';
+    try {
+      const data = await callApi({ action: 'listar_usuarios' });
+      if (data.ok) {
+        (data.usuarios || []).forEach(u => {
+          if (u === ADMIN_USUARIO) return;
+          const opt = document.createElement('option');
+          opt.value = u;
+          opt.textContent = u;
+          selectConductor.appendChild(opt);
+        });
+      }
+    } catch (e) {
+      // Si falla, simplemente se queda solo la opción "Yo mismo"
+    }
+  } else {
+    bloqueAsignar.style.display = 'none';
+  }
+
+  mostrarPanel(nuevoViajePanel);
+});
+
+document.getElementById('backToListBtn').addEventListener('click', () => {
+  mostrarPanel(viajesPanel);
+  cargarViajes();
+});
+
+// ---- Crear viaje ----
+let guardandoViaje = false;
+
+document.getElementById('crearViajeBtn').addEventListener('click', async () => {
+  if (guardandoViaje) return;
+
+  const conductorAsignado = usuarioActual === ADMIN_USUARIO
+    ? document.getElementById('viajeConductorAsignado').value
+    : '';
+
+  const viaje = {
+    usuario: usuarioActual,
+    usuario_asignado: conductorAsignado || undefined,
+    ciudad_recogida: document.getElementById('ciudadRecogida').value.trim(),
+    pais_recogida: document.getElementById('paisRecogida').value.trim(),
+    direccion_recogida: document.getElementById('direccionRecogida').value.trim(),
+    ciudad_entrega: document.getElementById('ciudadEntrega').value.trim(),
+    pais_entrega: document.getElementById('paisEntrega').value.trim(),
+    direccion_entrega: document.getElementById('direccionEntrega').value.trim(),
+    fecha_recogida: document.getElementById('fechaRecogida').value,
+    fecha_entrega: document.getElementById('fechaEntrega').value,
+    presupuesto_inicial: parseFloat(document.getElementById('presupuestoInicial').value) || 0
+  };
+
+  if (!viaje.ciudad_recogida || !viaje.ciudad_entrega || !viaje.fecha_recogida || !viaje.fecha_entrega) {
+    showMsg(nuevoViajeMsg, 'Rellena al menos ciudades y fechas.', 'error');
+    return;
+  }
+
+  const btn = document.getElementById('crearViajeBtn');
+  guardandoViaje = true;
+  btn.disabled = true;
+  btn.textContent = 'Guardando...';
+  showMsg(nuevoViajeMsg, 'Guardando...', 'ok');
+
+  try {
+    const data = await callApi({ action: 'crear_viaje', viaje });
+    if (data.ok) {
+      showMsg(nuevoViajeMsg, 'Viaje creado correctamente.', 'ok');
+      setTimeout(() => {
+        mostrarPanel(viajesPanel);
+        cargarViajes();
+      }, 600);
+    } else {
+      showMsg(nuevoViajeMsg, data.error || 'No se pudo crear el viaje.', 'error');
+    }
+  } catch (e) {
+    // Bug conocido de Apps Script: tras una escritura (appendRow), la respuesta a veces
+    // se redirige a script.googleusercontent.com sin cabeceras CORS y el navegador
+    // no puede leerla, aunque el dato SÍ se haya guardado en la hoja.
+    // En vez de asumir que falló, comprobamos la lista real de viajes.
+    console.warn('Fetch falló tras crear viaje, comprobando si se guardó igualmente:', e);
+    showMsg(nuevoViajeMsg, 'Comprobando si se guardó...', 'ok');
+    try {
+      const check = await callApi({ action: 'listar_viajes', usuario: usuarioActual });
+      const viajes = (check && check.ok && check.viajes) ? check.viajes : [];
+      const yaExiste = viajes.some(v =>
+        v.ciudad_recogida === viaje.ciudad_recogida &&
+        v.ciudad_entrega === viaje.ciudad_entrega &&
+        v.fecha_recogida === viaje.fecha_recogida &&
+        v.fecha_entrega === viaje.fecha_entrega
+      );
+      if (yaExiste) {
+        showMsg(nuevoViajeMsg, 'Viaje creado correctamente.', 'ok');
+        setTimeout(() => {
+          mostrarPanel(viajesPanel);
+          cargarViajes();
+        }, 600);
+      } else {
+        showMsg(nuevoViajeMsg, 'Error de conexión con el servidor. Vuelve a intentarlo.', 'error');
+      }
+    } catch (e2) {
+      showMsg(nuevoViajeMsg, 'Error de conexión con el servidor. Vuelve a intentarlo.', 'error');
+    }
+  } finally {
+    guardandoViaje = false;
+    btn.disabled = false;
+    btn.textContent = 'Crear viaje';
+  }
+});
+
+// =========================================================
+// ---- DETALLE DE VIAJE Y GASTOS ----
+// =========================================================
+let viajeActual = null; // objeto del viaje seleccionado
+const detalleViajePanel = document.getElementById('detalleViajePanel');
+const nuevoGastoPanel = document.getElementById('nuevoGastoPanel');
+const gasolinerasPanel = document.getElementById('gasolinerasPanel');
+const resumenMensualPanel = document.getElementById('resumenMensualPanel');
+const adminResumenPanel = document.getElementById('adminResumenPanel');
+const gastosMsg = document.getElementById('gastosMsg');
+const nuevoGastoMsg = document.getElementById('nuevoGastoMsg');
+const gasolinerasMsg = document.getElementById('gasolinerasMsg');
+
+function entrarADetalleViaje(viaje) {
+  viajeActual = viaje;
+  pintarResumenViaje();
+  mostrarPanel(detalleViajePanel);
+  cargarGastos();
+}
+
+function urlNavegarDireccion(direccion, ciudad, pais) {
+  const query = [direccion, ciudad, pais].filter(Boolean).join(', ');
+  if (!query) return null;
+  return 'https://www.google.com/maps/dir/?api=1&destination=' + encodeURIComponent(query);
+}
+
+function pintarResumenViaje(totalGastado) {
+  const resumen = document.getElementById('resumenViaje');
+  const presupuesto = Number(viajeActual.presupuesto_inicial || 0);
+  const estado = viajeActual.estado || 'activo';
+  let filasExtra = '';
+  if (typeof totalGastado === 'number') {
+    const restante = presupuesto - totalGastado;
+    const claseImporte = restante >= 0 ? 'amount-ok' : 'amount-bad';
+    const etiquetaRestante = estado === 'finalizado' ? 'Beneficio' : 'Restante';
+    filasExtra = `
+      <div class="summary-row">
+        <span>Gastado</span><span>${totalGastado.toFixed(2)} €</span>
+      </div>
+      <div class="summary-row total">
+        <span>${etiquetaRestante}</span><span class="${claseImporte}">${restante.toFixed(2)} €</span>
+      </div>
+    `;
+  }
+
+  const navRecogida = urlNavegarDireccion(viajeActual.direccion_recogida, viajeActual.ciudad_recogida, viajeActual.pais_recogida);
+  const navEntrega = urlNavegarDireccion(viajeActual.direccion_entrega, viajeActual.ciudad_entrega, viajeActual.pais_entrega);
+
+  const bloqueFinalizar = estado === 'finalizado'
+    ? `<div class="finalizado-etiqueta">✓ Viaje finalizado</div>`
+    : `<button type="button" class="finalizar-btn" id="finalizarViajeBtn">Finalizar viaje</button>`;
+
+  const conductorHtmlDetalle = (esAdminActual && viajeActual.usuario)
+    ? `<div class="conductor-tag"><span class="conductor-dot" style="background:${colorParaConductor(viajeActual.usuario)};"></span>${viajeActual.usuario}</div>`
+    : '';
+
+  resumen.innerHTML = `
+    <div class="trip-card-top" style="margin-bottom:4px;">
+      <div class="route">${viajeActual.ciudad_recogida} (${viajeActual.pais_recogida}) &rarr; ${viajeActual.ciudad_entrega} (${viajeActual.pais_entrega})</div>
+      <span class="estado-badge ${estado}">${estado === 'finalizado' ? 'Finalizado' : 'Activo'}</span>
+    </div>
+    ${conductorHtmlDetalle}
+    <div class="dates">${viajeActual.fecha_recogida || '-'} al ${viajeActual.fecha_entrega || '-'}</div>
+    ${navRecogida ? `<div class="summary-row"><span>Recogida</span><a class="gasto-nav" target="_blank" rel="noopener" href="${navRecogida}">📍 Navegar</a></div>` : ''}
+    ${navEntrega ? `<div class="summary-row"><span>Entrega</span><a class="gasto-nav" target="_blank" rel="noopener" href="${navEntrega}">📍 Navegar</a></div>` : ''}
+    <div class="summary-row">
+      <span>Presupuesto inicial</span><span>${presupuesto.toFixed(2)} €</span>
+    </div>
+    ${filasExtra}
+    ${bloqueFinalizar}
+  `;
+
+  if (estado !== 'finalizado') {
+    const btnFinalizar = document.getElementById('finalizarViajeBtn');
+    if (btnFinalizar) btnFinalizar.addEventListener('click', finalizarViajeActual);
+  }
+}
+
+let finalizandoViaje = false;
+
+async function finalizarViajeActual() {
+  if (finalizandoViaje || !viajeActual) return;
+  const confirmado = window.confirm('¿Seguro que quieres marcar este viaje como finalizado?');
+  if (!confirmado) return;
+
+  finalizandoViaje = true;
+  const btn = document.getElementById('finalizarViajeBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Finalizando...'; }
+
+  try {
+    const data = await callApi({ action: 'finalizar_viaje', id_viaje: viajeActual.id_viaje });
+    if (data.ok) {
+      viajeActual.estado = 'finalizado';
+      const idx = ultimosViajesCargados.findIndex(v => v.id_viaje === viajeActual.id_viaje);
+      if (idx !== -1) ultimosViajesCargados[idx].estado = 'finalizado';
+      pintarResumenViaje();
+    } else {
+      alert(data.error || 'No se pudo finalizar el viaje.');
+      if (btn) { btn.disabled = false; btn.textContent = 'Finalizar viaje'; }
+    }
+  } catch (e) {
+    // Igual que en el resto de la app: si el fetch falla tras la escritura,
+    // comprobamos si el estado ya cambió antes de dar el error por bueno.
+    try {
+      const check = await callApi({ action: 'listar_viajes', usuario: usuarioActual });
+      const viajes = (check && check.ok && check.viajes) ? check.viajes : [];
+      const actualizado = viajes.find(v => v.id_viaje === viajeActual.id_viaje);
+      if (actualizado && actualizado.estado === 'finalizado') {
+        viajeActual.estado = 'finalizado';
+        const idx = ultimosViajesCargados.findIndex(v => v.id_viaje === viajeActual.id_viaje);
+        if (idx !== -1) ultimosViajesCargados[idx].estado = 'finalizado';
+        pintarResumenViaje();
+      } else {
+        alert('Error de conexión con el servidor. Vuelve a intentarlo.');
+        if (btn) { btn.disabled = false; btn.textContent = 'Finalizar viaje'; }
+      }
+    } catch (e2) {
+      alert('Error de conexión con el servidor. Vuelve a intentarlo.');
+      if (btn) { btn.disabled = false; btn.textContent = 'Finalizar viaje'; }
+    }
+  } finally {
+    finalizandoViaje = false;
+  }
+}
+
+function urlNavegar(lat, lng) {
+  return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+}
+
+function fechaHoraLocalActual() {
+  const ahora = new Date();
+  const offsetMs = ahora.getTimezoneOffset() * 60000;
+  return new Date(ahora - offsetMs).toISOString().slice(0, 16);
+}
+
+function formatearFechaHora(valor) {
+  if (!valor) return '';
+  const partes = String(valor).split('T');
+  if (partes.length !== 2) return valor;
+  const [fecha, hora] = partes;
+  const [y, m, d] = fecha.split('-');
+  return `${d}/${m}/${y} ${hora}`;
+}
+
+function parseDetalle(g) {
+  try { return g.detalle ? JSON.parse(g.detalle) : {}; } catch (e) { return {}; }
+}
+
+function lineaDetalleGasto(g) {
+  const d = parseDetalle(g);
+  switch (g.tipo) {
+    case 'Combustible': return d.combustible_tipo || '';
+    case 'Peaje': return d.via ? ('Vía: ' + d.via) : '';
+    case 'Dieta/Comida': return d.lugar || '';
+    case 'Alojamiento': return [d.alojamiento_tipo, d.ciudad].filter(Boolean).join(' · ');
+    case 'Traslado': return d.medio || '';
+    default: return [g.categoria, g.subcategoria].filter(Boolean).join(' · ');
+  }
+}
+
+async function cargarGastos() {
+  const gastosList = document.getElementById('gastosList');
+  const emptyGastosState = document.getElementById('emptyGastosState');
+  hideMsg(gastosMsg);
+  gastosList.innerHTML = '';
+  emptyGastosState.style.display = 'none';
+
+  try {
+    const data = await callApi({ action: 'listar_gastos', id_viaje: viajeActual.id_viaje });
+    if (!data.ok) {
+      showMsg(gastosMsg, data.error || 'No se pudieron cargar los gastos.', 'error');
+      pintarResumenViaje();
+      return;
+    }
+
+    const gastos = data.gastos || [];
+    const total = gastos.reduce((acc, g) => acc + (Number(g.importe) || 0), 0);
+    pintarResumenViaje(total);
+
+    if (gastos.length === 0) {
+      emptyGastosState.style.display = 'block';
+      return;
+    }
+
+    gastos.forEach(g => {
+      const card = document.createElement('div');
+      card.className = 'gasto-card';
+      const subLinea = lineaDetalleGasto(g);
+      const tieneUbicacion = g.lat && g.lng;
+      card.innerHTML = `
+        <div class="gasto-top">
+          <span class="gasto-tipo">${g.tipo || '-'}</span>
+          <span class="gasto-importe">${Number(g.importe || 0).toFixed(2)} €</span>
+        </div>
+        <div class="gasto-sub">${formatearFechaHora(g.fecha)}${subLinea ? ' · ' + subLinea : ''}</div>
+        ${g.notas ? `<div class="gasto-notas">${g.notas}</div>` : ''}
+        ${tieneUbicacion ? `<a class="gasto-nav" target="_blank" rel="noopener" href="${urlNavegar(g.lat, g.lng)}">📍 Navegar hasta aquí</a>` : ''}
+        ${g.foto_url ? `<a class="gasto-nav" target="_blank" rel="noopener" href="${g.foto_url}">🧾 Ver ticket</a>` : ''}
+      `;
+      gastosList.appendChild(card);
+    });
+  } catch (e) {
+    showMsg(gastosMsg, 'Error de conexión con el servidor.', 'error');
+    pintarResumenViaje();
+  }
+}
+
+document.getElementById('backToListFromDetalleBtn').addEventListener('click', () => {
+  viajeActual = null;
+  mostrarPanel(viajesPanel);
+  cargarViajes();
+});
+
+// =========================================================
+// ---- GASOLINERAS (repostajes con ubicación, ordenados) ----
+// =========================================================
+document.getElementById('gasolinerasBtn').addEventListener('click', () => {
+  mostrarPanel(gasolinerasPanel);
+  cargarGasolineras();
+});
+
+document.getElementById('backToDetalleFromGasolinerasBtn').addEventListener('click', () => {
+  mostrarPanel(detalleViajePanel);
+  cargarGastos();
+});
+
+async function cargarGasolineras() {
+  const list = document.getElementById('gasolinerasList');
+  const emptyState = document.getElementById('emptyGasolinerasState');
+  hideMsg(gasolinerasMsg);
+  list.innerHTML = '';
+  emptyState.style.display = 'none';
+
+  try {
+    const data = await callApi({ action: 'listar_gastos', id_viaje: viajeActual.id_viaje });
+    if (!data.ok) {
+      showMsg(gasolinerasMsg, data.error || 'No se pudieron cargar los repostajes.', 'error');
+      return;
+    }
+
+    const repostajes = (data.gastos || [])
+      .filter(g => g.tipo === 'Combustible' && g.lat && g.lng)
+      .sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
+
+    if (repostajes.length === 0) {
+      emptyState.style.display = 'block';
+      return;
+    }
+
+    repostajes.forEach(g => {
+      const d = parseDetalle(g);
+      const card = document.createElement('div');
+      card.className = 'station-card';
+      card.innerHTML = `
+        <div class="station-top">
+          <span class="station-tipo">${d.combustible_tipo || 'Combustible'}</span>
+          <span class="station-importe">${Number(g.importe || 0).toFixed(2)} €</span>
+        </div>
+        <div class="station-fecha">${formatearFechaHora(g.fecha)}</div>
+        <a class="nav-btn" target="_blank" rel="noopener" href="${urlNavegar(g.lat, g.lng)}">Navegar</a>
+      `;
+      list.appendChild(card);
+    });
+  } catch (e) {
+    showMsg(gasolinerasMsg, 'Error de conexión con el servidor.', 'error');
+  }
+}
+
+// =========================================================
+// ---- RESUMEN MENSUAL (presupuesto, gastos y beneficio por mes) ----
+// =========================================================
+const resumenMensualMsg = document.getElementById('resumenMensualMsg');
+
+document.getElementById('resumenMensualBtn').addEventListener('click', () => {
+  mostrarPanel(resumenMensualPanel);
+  cargarResumenMensual();
+});
+
+document.getElementById('backToListFromResumenBtn').addEventListener('click', () => {
+  mostrarPanel(viajesPanel);
+  cargarViajes();
+});
+
+const NOMBRES_MES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+
+function formatearMes(mesYYYYMM) {
+  const partes = mesYYYYMM.split('-');
+  const anio = partes[0];
+  const mesIndex = parseInt(partes[1], 10) - 1;
+  return (NOMBRES_MES[mesIndex] || mesYYYYMM) + ' de ' + anio;
+}
+
+async function cargarResumenMensual() {
+  const list = document.getElementById('resumenMensualList');
+  const emptyState = document.getElementById('emptyResumenState');
+  hideMsg(resumenMensualMsg);
+  list.innerHTML = '';
+  emptyState.style.display = 'none';
+
+  try {
+    const data = await callApi({ action: 'resumen_mensual', usuario: usuarioActual });
+    if (!data.ok) {
+      showMsg(resumenMensualMsg, data.error || 'No se pudo calcular el resumen.', 'error');
+      return;
+    }
+
+    const meses = data.meses || [];
+    if (meses.length === 0) {
+      emptyState.style.display = 'block';
+      return;
+    }
+
+    meses.forEach(m => {
+      const beneficio = m.beneficio;
+      const claseImporte = beneficio >= 0 ? 'amount-ok' : 'amount-bad';
+      const card = document.createElement('div');
+      card.className = 'mes-card';
+      card.innerHTML = `
+        <div class="mes-titulo">${formatearMes(m.mes)}</div>
+        <div class="mes-row">
+          <span>Presupuesto total</span><span>${Number(m.presupuesto_total).toFixed(2)} €</span>
+        </div>
+        <div class="mes-row">
+          <span>Gastos totales</span><span>${Number(m.gastos_total).toFixed(2)} €</span>
+        </div>
+        <div class="mes-row beneficio">
+          <span>Beneficio</span><span class="${claseImporte}">${beneficio.toFixed(2)} €</span>
+        </div>
+        <div class="mes-viajes-count">${m.num_viajes} viaje${m.num_viajes === 1 ? '' : 's'} este mes</div>
+      `;
+      list.appendChild(card);
+    });
+  } catch (e) {
+    showMsg(resumenMensualMsg, 'Error de conexión con el servidor.', 'error');
+  }
+}
+
+// =========================================================
+// ---- RESUMEN DE ADMINISTRADOR (todos los conductores) ----
+// =========================================================
+const adminResumenMsg = document.getElementById('adminResumenMsg');
+
+document.getElementById('adminResumenBtn').addEventListener('click', () => {
+  mostrarPanel(adminResumenPanel);
+  cargarResumenAdmin();
+});
+
+document.getElementById('backToListFromAdminBtn').addEventListener('click', () => {
+  mostrarPanel(viajesPanel);
+  cargarViajes();
+});
+
+// Pestañas "Por mes" / "Acumulado total" dentro del panel de admin
+document.querySelectorAll('#adminResumenPanel .tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('#adminResumenPanel .tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    const esMes = tab.dataset.adminTab === 'mes';
+    document.getElementById('adminResumenPorMes').style.display = esMes ? 'block' : 'none';
+    document.getElementById('adminResumenAcumulado').style.display = esMes ? 'none' : 'block';
+  });
+});
+
+function filaConductorHtml(c) {
+  const claseAjuste = c.ajuste >= 0 ? 'amount-ok' : 'amount-bad';
+  const textoAjuste = c.ajuste >= 0
+    ? '+' + c.ajuste.toFixed(2) + ' € a recibir para igualar'
+    : c.ajuste.toFixed(2) + ' € de más (le tocaría aportar)';
+  return `
+    <div class="conductor-card" style="border-left:3px solid ${colorParaConductor(c.usuario)};">
+      <div class="conductor-nombre"><span class="conductor-dot" style="background:${colorParaConductor(c.usuario)};"></span> ${c.usuario}</div>
+      <div class="conductor-row"><span>Viajes</span><span>${c.num_viajes}</span></div>
+      <div class="conductor-row"><span>Presupuesto total</span><span>${Number(c.presupuesto_total).toFixed(2)} €</span></div>
+      <div class="conductor-row"><span>Gastos totales</span><span>${Number(c.gastos_total).toFixed(2)} €</span></div>
+      <div class="conductor-row"><span>Beneficio</span><span>${Number(c.beneficio).toFixed(2)} €</span></div>
+      <div class="conductor-ajuste"><span>Ajuste para igualar</span><span class="${claseAjuste}">${textoAjuste}</span></div>
+    </div>
+  `;
+}
+
+async function cargarResumenAdmin() {
+  const contPorMes = document.getElementById('adminResumenPorMes');
+  const contAcumulado = document.getElementById('adminResumenAcumulado');
+  const emptyState = document.getElementById('emptyAdminResumenState');
+  hideMsg(adminResumenMsg);
+  contPorMes.innerHTML = '';
+  contAcumulado.innerHTML = '';
+  emptyState.style.display = 'none';
+
+  try {
+    const data = await callApi({ action: 'resumen_admin', usuario: usuarioActual });
+    if (!data.ok) {
+      showMsg(adminResumenMsg, data.error || 'No se pudo calcular el resumen del equipo.', 'error');
+      return;
+    }
+
+    const porMes = data.por_mes || [];
+    const acumulado = data.acumulado || [];
+
+    if (porMes.length === 0 && acumulado.length === 0) {
+      emptyState.style.display = 'block';
+      return;
+    }
+
+    // ---- Pestaña "Por mes" ----
+    porMes.forEach(bloqueMes => {
+      const header = document.createElement('div');
+      header.className = 'equipo-mes-header';
+      header.innerHTML = `
+        <span class="equipo-mes-titulo">${formatearMes(bloqueMes.mes)}</span>
+        <span class="equipo-mes-parte">Parte igualitaria: ${Number(bloqueMes.parte_igualitaria).toFixed(2)} €</span>
+      `;
+      contPorMes.appendChild(header);
+      bloqueMes.conductores.forEach(c => {
+        contPorMes.insertAdjacentHTML('beforeend', filaConductorHtml(c));
+      });
+    });
+
+    // ---- Pestaña "Acumulado total" ----
+    const totalCard = document.createElement('div');
+    totalCard.className = 'equipo-total-card';
+    totalCard.innerHTML = `
+      <div class="equipo-total-row"><span>Beneficio total del equipo</span><span>${Number(data.total_beneficio_acumulado).toFixed(2)} €</span></div>
+      <div class="equipo-total-row"><span>Parte igualitaria por conductor</span><span>${Number(data.parte_igualitaria_acumulado).toFixed(2)} €</span></div>
+    `;
+    contAcumulado.appendChild(totalCard);
+    acumulado.forEach(c => {
+      contAcumulado.insertAdjacentHTML('beforeend', filaConductorHtml(c));
+    });
+
+  } catch (e) {
+    showMsg(adminResumenMsg, 'Error de conexión con el servidor.', 'error');
+  }
+}
+
+// =========================================================
+// ---- NUEVO GASTO (formulario dinámico según tipo) ----
+// =========================================================
+let ubicacionActual = null; // { lat, lng } o null
+let combustibleSelectorVisible = false;
+
+const tipoBlocks = {
+  'Combustible': 'blockCombustible',
+  'Peaje': 'blockPeaje',
+  'Dieta/Comida': 'blockDieta',
+  'Alojamiento': 'blockAlojamiento',
+  'Traslado': 'blockTraslado',
+  'Otros': 'blockOtros'
+};
+
+const tiposConUbicacion = ['Combustible', 'Peaje', 'Alojamiento'];
+
+function actualizarBloquePorTipo() {
+  const tipo = document.getElementById('gastoTipo').value;
+
+  Object.values(tipoBlocks).forEach(blockId => {
+    document.getElementById(blockId).style.display = 'none';
+  });
+  const activo = tipoBlocks[tipo];
+  if (activo) document.getElementById(activo).style.display = 'block';
+
+  if (tipo === 'Combustible') {
+    actualizarVistaCombustible();
+  }
+
+  actualizarEstadoUbicacion(tipo);
+}
+
+function actualizarVistaCombustible() {
+  const selectorBlock = document.getElementById('combustibleTipoBlock');
+  const infoBlock = document.getElementById('combustibleGuardadoInfo');
+  if (combustibleTipoGuardado && !combustibleSelectorVisible) {
+    selectorBlock.style.display = 'none';
+    infoBlock.style.display = 'block';
+    document.getElementById('combustibleGuardadoTexto').textContent = combustibleTipoGuardado;
+  } else {
+    selectorBlock.style.display = 'block';
+    infoBlock.style.display = 'none';
+  }
+}
+
+document.getElementById('cambiarCombustibleBtn').addEventListener('click', () => {
+  combustibleSelectorVisible = true;
+  actualizarVistaCombustible();
+});
+
+function actualizarEstadoUbicacion(tipo) {
+  const status = document.getElementById('ubicacionStatus');
+  if (!tiposConUbicacion.includes(tipo)) {
+    status.style.display = 'none';
+    ubicacionActual = null;
+    return;
+  }
+  status.style.display = 'block';
+  status.className = 'ubicacion-status';
+  status.textContent = 'Obteniendo tu ubicación...';
+  capturarUbicacion();
+}
+
+function capturarUbicacion() {
+  const status = document.getElementById('ubicacionStatus');
+  if (!navigator.geolocation) {
+    ubicacionActual = null;
+    status.className = 'ubicacion-status bad';
+    status.textContent = 'Este dispositivo no permite obtener la ubicación.';
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      ubicacionActual = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      status.className = 'ubicacion-status ok';
+      status.textContent = '📍 Ubicación capturada correctamente.';
+    },
+    err => {
+      ubicacionActual = null;
+      status.className = 'ubicacion-status bad';
+      status.textContent = '⚠️ No se pudo obtener la ubicación (revisa permisos). El gasto se guardará sin ubicación.';
+    },
+    { timeout: 8000, enableHighAccuracy: true }
+  );
+}
+
+document.getElementById('gastoTipo').addEventListener('change', actualizarBloquePorTipo);
+
+// ---- Ir a pantalla de nuevo gasto ----
+document.getElementById('newGastoBtn').addEventListener('click', () => {
+  document.getElementById('gastoTipo').value = 'Combustible';
+  combustibleSelectorVisible = false;
+  ['gastoVia','gastoAlojamientoCiudad','gastoCategoriaOtros','gastoSubcategoriaOtros','gastoImporte','gastoNotas']
+    .forEach(id => document.getElementById(id).value = '');
+  document.getElementById('gastoFecha').value = fechaHoraLocalActual();
+  document.getElementById('gastoCombustibleTipo').value = 'Gasolina';
+  document.getElementById('gastoDietaLugar').value = 'Restaurante';
+  document.getElementById('gastoAlojamientoTipo').value = 'Hotel';
+  document.getElementById('gastoTrasladoMedio').value = 'Avión';
+  fotoUrlDetectada = null;
+  hideMsg(nuevoGastoMsg);
+  hideMsg(ticketMsg);
+  actualizarBloquePorTipo();
+  mostrarPanel(nuevoGastoPanel);
+});
+
+document.getElementById('backToDetalleBtn').addEventListener('click', () => {
+  mostrarPanel(detalleViajePanel);
+  cargarGastos();
+});
+
+// =========================================================
+// ---- RECORTE DE FOTO ANTES DE ESCANEAR (implementación propia) ----
+// =========================================================
+const cropWrap = document.getElementById('cropWrap');
+const cropImage = document.getElementById('cropImage');
+const cropBox = document.getElementById('cropBox');
+let rotacionActual = 0; // 0, 90, 180, 270
+
+document.getElementById('escanearTicketBtn').addEventListener('click', () => {
+  document.getElementById('ticketFotoInput').click();
+});
+
+document.getElementById('ticketFotoInput').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    // El listener de carga se define ANTES de fijar el src, para no perder
+    // el evento si la imagen (base64) se decodifica muy rápido.
+    cropImage.onload = () => {
+      rotacionActual = 0;
+      cropImage.style.transform = 'rotate(0deg)';
+      document.getElementById('cropModal').classList.add('active');
+      // Centramos el recuadro ocupando el 85% de la imagen visible, una vez pintada.
+      requestAnimationFrame(inicializarCropBox);
+    };
+    cropImage.onerror = () => {
+      showMsg(ticketMsg, 'No se pudo cargar la foto para recortarla. Inténtalo de nuevo.', 'error');
+    };
+    cropImage.src = reader.result;
+  };
+  reader.onerror = () => {
+    showMsg(ticketMsg, 'No se pudo leer el archivo de la foto.', 'error');
+  };
+  reader.readAsDataURL(file);
+
+  // Permite volver a elegir el mismo archivo si se cancela el recorte
+  e.target.value = '';
+});
+
+function inicializarCropBox() {
+  const wrapRect = cropWrap.getBoundingClientRect();
+  const imgRect = cropImage.getBoundingClientRect();
+  const anchoImg = imgRect.width;
+  const altoImg = imgRect.height;
+  const offsetX = imgRect.left - wrapRect.left;
+  const offsetY = imgRect.top - wrapRect.top;
+
+  const margenX = anchoImg * 0.08;
+  const margenY = altoImg * 0.08;
+
+  cropBox.style.left = (offsetX + margenX) + 'px';
+  cropBox.style.top = (offsetY + margenY) + 'px';
+  cropBox.style.width = (anchoImg - margenX * 2) + 'px';
+  cropBox.style.height = (altoImg - margenY * 2) + 'px';
+}
+
+document.getElementById('cropRotateBtn').addEventListener('click', () => {
+  rotacionActual = (rotacionActual + 90) % 360;
+  cropImage.style.transform = 'rotate(' + rotacionActual + 'deg)';
+  // Tras rotar, el tamaño visible de la imagen cambia; recolocamos el recuadro.
+  requestAnimationFrame(inicializarCropBox);
+});
+
+// ---- Arrastrar y redimensionar el recuadro de recorte (ratón y táctil) ----
+let arrastre = null; // { modo: 'mover'|'nw'|'ne'|'sw'|'se', startX, startY, boxInicial }
+
+function limitesImagen() {
+  const wrapRect = cropWrap.getBoundingClientRect();
+  const imgRect = cropImage.getBoundingClientRect();
+  return {
+    left: imgRect.left - wrapRect.left,
+    top: imgRect.top - wrapRect.top,
+    right: imgRect.left - wrapRect.left + imgRect.width,
+    bottom: imgRect.top - wrapRect.top + imgRect.height
+  };
+}
+
+function iniciarArrastre(modo, x, y) {
+  arrastre = {
+    modo,
+    startX: x,
+    startY: y,
+    left: cropBox.offsetLeft,
+    top: cropBox.offsetTop,
+    width: cropBox.offsetWidth,
+    height: cropBox.offsetHeight
+  };
+}
+
+function moverArrastre(x, y) {
+  if (!arrastre) return;
+  const dx = x - arrastre.startX;
+  const dy = y - arrastre.startY;
+  const lim = limitesImagen();
+  const MIN = 40;
+
+  let { left, top, width, height } = arrastre;
+
+  if (arrastre.modo === 'mover') {
+    left = arrastre.left + dx;
+    top = arrastre.top + dy;
+    left = Math.max(lim.left, Math.min(left, lim.right - width));
+    top = Math.max(lim.top, Math.min(top, lim.bottom - height));
+  } else {
+    if (arrastre.modo.includes('n')) {
+      const nuevoTop = Math.max(lim.top, Math.min(arrastre.top + dy, arrastre.top + arrastre.height - MIN));
+      height = arrastre.top + arrastre.height - nuevoTop;
+      top = nuevoTop;
+    }
+    if (arrastre.modo.includes('s')) {
+      const nuevoBottom = Math.min(lim.bottom, Math.max(arrastre.top + dy, arrastre.top + MIN));
+      height = nuevoBottom - arrastre.top;
+    }
+    if (arrastre.modo.includes('w')) {
+      const nuevoLeft = Math.max(lim.left, Math.min(arrastre.left + dx, arrastre.left + arrastre.width - MIN));
+      width = arrastre.left + arrastre.width - nuevoLeft;
+      left = nuevoLeft;
+    }
+    if (arrastre.modo.includes('e')) {
+      const nuevoRight = Math.min(lim.right, Math.max(arrastre.left + dx, arrastre.left + MIN));
+      width = nuevoRight - arrastre.left;
+    }
+  }
+
+  cropBox.style.left = left + 'px';
+  cropBox.style.top = top + 'px';
+  cropBox.style.width = width + 'px';
+  cropBox.style.height = height + 'px';
+}
+
+function finalizarArrastre() {
+  arrastre = null;
+}
+
+cropBox.addEventListener('pointerdown', (e) => {
+  if (e.target.classList.contains('crop-handle')) return; // lo gestionan las asas
+  e.preventDefault();
+  cropBox.setPointerCapture(e.pointerId);
+  iniciarArrastre('mover', e.clientX, e.clientY);
+});
+
+document.querySelectorAll('.crop-handle').forEach(handle => {
+  handle.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    handle.setPointerCapture(e.pointerId);
+    iniciarArrastre(handle.dataset.handle, e.clientX, e.clientY);
+  });
+});
+
+cropWrap.addEventListener('pointermove', (e) => {
+  if (arrastre) moverArrastre(e.clientX, e.clientY);
+});
+cropWrap.addEventListener('pointerup', finalizarArrastre);
+cropWrap.addEventListener('pointercancel', finalizarArrastre);
+
+document.getElementById('cropCancelBtn').addEventListener('click', () => {
+  document.getElementById('cropModal').classList.remove('active');
+});
+
+document.getElementById('cropConfirmBtn').addEventListener('click', () => {
+  const imgRect = cropImage.getBoundingClientRect();
+  const boxRect = cropBox.getBoundingClientRect();
+
+  // Proporción entre el tamaño mostrado en pantalla y el tamaño real de la imagen
+  const escalaX = cropImage.naturalWidth / imgRect.width;
+  const escalaY = cropImage.naturalHeight / imgRect.height;
+
+  const sx = (boxRect.left - imgRect.left) * escalaX;
+  const sy = (boxRect.top - imgRect.top) * escalaY;
+  const sw = boxRect.width * escalaX;
+  const sh = boxRect.height * escalaY;
+
+  // Primero "revelamos" la rotación aplicada visualmente con CSS sobre un
+  // lienzo intermedio, para que el recorte tomado en pantalla coincida
+  // exactamente con el resultado final.
+  const intermedio = document.createElement('canvas');
+  const ictx = intermedio.getContext('2d');
+  if (rotacionActual === 90 || rotacionActual === 270) {
+    intermedio.width = cropImage.naturalHeight;
+    intermedio.height = cropImage.naturalWidth;
+  } else {
+    intermedio.width = cropImage.naturalWidth;
+    intermedio.height = cropImage.naturalHeight;
+  }
+  ictx.translate(intermedio.width / 2, intermedio.height / 2);
+  ictx.rotate((rotacionActual * Math.PI) / 180);
+  ictx.drawImage(cropImage, -cropImage.naturalWidth / 2, -cropImage.naturalHeight / 2);
+
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  canvas.width = sw;
+  canvas.height = sh;
+  ctx.drawImage(intermedio, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+
+  document.getElementById('cropModal').classList.remove('active');
+
+  canvas.toBlob((blob) => {
+    if (blob) procesarTicketRecortado(blob);
+  }, 'image/jpeg', 0.92);
+});
+
+// =========================================================
+// ---- ESCANEAR TICKET CON LA CÁMARA (OCR) ----
+// =========================================================
+const ticketMsg = document.getElementById('ticketMsg');
+let fotoUrlDetectada = null;
+
+async function procesarTicketRecortado(blob) {
+  showMsg(ticketMsg, 'Leyendo el ticket, un momento...', 'ok');
+  const btn = document.getElementById('escanearTicketBtn');
+  btn.disabled = true;
+
+  try {
+    const base64Completo = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+    const base64Data = base64Completo.split(',')[1];
+    const mimeType = blob.type || 'image/jpeg';
+
+    const data = await callApi({ action: 'escanear_ticket', imagen_base64: base64Data, mime_type: mimeType });
+
+    if (data.ok) {
+      let relleno = [];
+
+      // 1) Tipo de gasto detectado -> cambia el desplegable y muestra el bloque correcto
+      const tiposValidos = ['Combustible', 'Peaje', 'Dieta/Comida', 'Alojamiento', 'Traslado'];
+      if (data.tipo && tiposValidos.includes(data.tipo)) {
+        document.getElementById('gastoTipo').value = data.tipo;
+        if (data.tipo === 'Combustible' && data.combustible_tipo) {
+          combustibleSelectorVisible = true; // fuerza a mostrar el selector con el valor detectado
+        }
+        actualizarBloquePorTipo();
+        relleno.push('tipo: ' + data.tipo);
+
+        // 2) Campos propios de ese tipo, si el OCR los detectó
+        if (data.tipo === 'Combustible' && data.combustible_tipo) {
+          document.getElementById('gastoCombustibleTipo').value = data.combustible_tipo;
+          relleno.push('combustible: ' + data.combustible_tipo);
+        }
+        if (data.tipo === 'Peaje' && data.via) {
+          document.getElementById('gastoVia').value = data.via;
+          relleno.push('vía: ' + data.via);
+        }
+        if (data.tipo === 'Dieta/Comida' && data.lugar) {
+          document.getElementById('gastoDietaLugar').value = data.lugar;
+          relleno.push('lugar: ' + data.lugar);
+        }
+        if (data.tipo === 'Alojamiento' && data.alojamiento_tipo) {
+          document.getElementById('gastoAlojamientoTipo').value = data.alojamiento_tipo;
+          relleno.push('alojamiento: ' + data.alojamiento_tipo);
+        }
+        if (data.tipo === 'Traslado' && data.medio) {
+          document.getElementById('gastoTrasladoMedio').value = data.medio;
+          relleno.push('medio: ' + data.medio);
+        }
+      }
+
+      // 3) Importe y fecha, como ya hacíamos
+      if (data.importe) {
+        document.getElementById('gastoImporte').value = data.importe;
+        relleno.push('importe: ' + Number(data.importe).toFixed(2) + ' €');
+      }
+      if (data.fecha) {
+        const horaActual = (document.getElementById('gastoFecha').value.split('T')[1]) || '12:00';
+        document.getElementById('gastoFecha').value = data.fecha + 'T' + horaActual;
+        relleno.push('fecha: ' + data.fecha);
+      }
+      if (data.foto_url) {
+        fotoUrlDetectada = data.foto_url;
+      }
+      if (relleno.length > 0) {
+        showMsg(ticketMsg, '✓ Ticket leído. Revisa que todo esté correcto: ' + relleno.join(', ') + '.', 'ok');
+      } else {
+        showMsg(ticketMsg, 'Se guardó la foto, pero no se pudo detectar nada automáticamente. Rellena los campos a mano.', 'error');
+      }
+    } else {
+      showMsg(ticketMsg, data.error || 'No se pudo leer el ticket.', 'error');
+    }
+  } catch (err) {
+    showMsg(ticketMsg, 'Error al procesar la foto. Puedes rellenar los datos a mano.', 'error');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// ---- Construir categoria/subcategoria/detalle según el tipo elegido ----
+function construirDatosPorTipo(tipo) {
+  let categoria = '';
+  let subcategoria = '';
+  let detalle = {};
+  let combustibleElegido = null;
+
+  if (tipo === 'Combustible') {
+    combustibleElegido = combustibleSelectorVisible || !combustibleTipoGuardado
+      ? document.getElementById('gastoCombustibleTipo').value
+      : combustibleTipoGuardado;
+    categoria = combustibleElegido;
+    detalle.combustible_tipo = combustibleElegido;
+  } else if (tipo === 'Peaje') {
+    const via = document.getElementById('gastoVia').value.trim();
+    categoria = via;
+    detalle.via = via;
+  } else if (tipo === 'Dieta/Comida') {
+    const lugar = document.getElementById('gastoDietaLugar').value;
+    categoria = lugar;
+    detalle.lugar = lugar;
+  } else if (tipo === 'Alojamiento') {
+    const alojTipo = document.getElementById('gastoAlojamientoTipo').value;
+    const ciudad = document.getElementById('gastoAlojamientoCiudad').value.trim();
+    categoria = alojTipo;
+    subcategoria = ciudad;
+    detalle.alojamiento_tipo = alojTipo;
+    detalle.ciudad = ciudad;
+  } else if (tipo === 'Traslado') {
+    const medio = document.getElementById('gastoTrasladoMedio').value;
+    categoria = medio;
+    detalle.medio = medio;
+  } else {
+    categoria = document.getElementById('gastoCategoriaOtros').value.trim();
+    subcategoria = document.getElementById('gastoSubcategoriaOtros').value.trim();
+  }
+
+  return { categoria, subcategoria, detalle, combustibleElegido };
+}
+
+// ---- Crear gasto ----
+let guardandoGasto = false;
+
+document.getElementById('crearGastoBtn').addEventListener('click', async () => {
+  if (guardandoGasto) return;
+
+  const tipo = document.getElementById('gastoTipo').value;
+  const importe = parseFloat(document.getElementById('gastoImporte').value) || 0;
+  const fecha = document.getElementById('gastoFecha').value;
+  const notas = document.getElementById('gastoNotas').value.trim();
+
+  if (!importe || !fecha) {
+    showMsg(nuevoGastoMsg, 'Rellena al menos el importe y la fecha.', 'error');
+    return;
+  }
+  if (tipo === 'Alojamiento' && !document.getElementById('gastoAlojamientoCiudad').value.trim()) {
+    showMsg(nuevoGastoMsg, 'Indica la ciudad del alojamiento.', 'error');
+    return;
+  }
+  if (tipo === 'Peaje' && !document.getElementById('gastoVia').value.trim()) {
+    showMsg(nuevoGastoMsg, 'Indica la vía o autopista.', 'error');
+    return;
+  }
+
+  const { categoria, subcategoria, detalle, combustibleElegido } = construirDatosPorTipo(tipo);
+
+  const gasto = {
+    id_viaje: viajeActual.id_viaje,
+    tipo,
+    categoria,
+    subcategoria,
+    importe,
+    fecha,
+    notas,
+    lat: (tiposConUbicacion.includes(tipo) && ubicacionActual) ? ubicacionActual.lat : '',
+    lng: (tiposConUbicacion.includes(tipo) && ubicacionActual) ? ubicacionActual.lng : '',
+    detalle: JSON.stringify(detalle),
+    foto_url: fotoUrlDetectada || ''
+  };
+
+  const btn = document.getElementById('crearGastoBtn');
+  guardandoGasto = true;
+  btn.disabled = true;
+  btn.textContent = 'Guardando...';
+  showMsg(nuevoGastoMsg, 'Guardando...', 'ok');
+
+  async function finalizarExito() {
+    // Si era combustible y se eligió/confirmó un tipo nuevo, lo guardamos como preferencia
+    if (tipo === 'Combustible' && combustibleElegido && combustibleElegido !== combustibleTipoGuardado) {
+      try {
+        await callApi({ action: 'set_preferencia', usuario: usuarioActual, clave: 'combustible_tipo', valor: combustibleElegido });
+        combustibleTipoGuardado = combustibleElegido;
+      } catch (e) {
+        console.warn('No se pudo guardar la preferencia de combustible:', e);
+      }
+    }
+    showMsg(nuevoGastoMsg, 'Gasto guardado correctamente.', 'ok');
+    setTimeout(() => {
+      mostrarPanel(detalleViajePanel);
+      cargarGastos();
+    }, 600);
+  }
+
+  try {
+    const data = await callApi({ action: 'crear_gasto', gasto });
+    if (data.ok) {
+      await finalizarExito();
+    } else {
+      showMsg(nuevoGastoMsg, data.error || 'No se pudo guardar el gasto.', 'error');
+    }
+  } catch (e) {
+    // Mismo comportamiento que al crear un viaje: si el fetch falla tras la escritura,
+    // comprobamos si el gasto ya quedó guardado antes de dar el error por bueno.
+    console.warn('Fetch falló tras crear gasto, comprobando si se guardó igualmente:', e);
+    showMsg(nuevoGastoMsg, 'Comprobando si se guardó...', 'ok');
+    try {
+      const check = await callApi({ action: 'listar_gastos', id_viaje: viajeActual.id_viaje });
+      const gastos = (check && check.ok && check.gastos) ? check.gastos : [];
+      const yaExiste = gastos.some(g =>
+        g.tipo === gasto.tipo &&
+        Number(g.importe) === gasto.importe &&
+        g.fecha === gasto.fecha &&
+        (g.notas || '') === gasto.notas
+      );
+      if (yaExiste) {
+        await finalizarExito();
+      } else {
+        showMsg(nuevoGastoMsg, 'Error de conexión con el servidor. Vuelve a intentarlo.', 'error');
+      }
+    } catch (e2) {
+      showMsg(nuevoGastoMsg, 'Error de conexión con el servidor. Vuelve a intentarlo.', 'error');
+    }
+  } finally {
+    guardandoGasto = false;
+    btn.disabled = false;
+    btn.textContent = 'Guardar gasto';
+  }
+});
+</script>
+</body>
+</html>
